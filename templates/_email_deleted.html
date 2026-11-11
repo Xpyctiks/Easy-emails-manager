@@ -1,0 +1,7 @@
+{#- htmx answer after deleting one email from the reading pane: empty pane (main target) + row removed from the
+    list + updated folder counter in the left pane + updated list counter. -#}
+{% from "_macros.html" import domain_item with context %}
+{% include "_read_empty.html" %}
+<div id="row-{{ email_id }}" hx-swap-oob="delete"></div>
+{{ domain_item(domain_info, True, True) }}
+<span id="listCount" hx-swap-oob="true">{{ list_total }}</span>

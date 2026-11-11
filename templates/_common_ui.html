@@ -1,0 +1,28 @@
+{#- Shared by every page: toasts container, confirmation dialog, flash messages (shown as toasts by static/js/app.js).
+    Flash texts are passed as JSON (tojson escapes HTML), they may contain subjects/names coming from emails. -#}
+<div class="toast-container position-fixed bottom-0 end-0 p-3" id="toastContainer" style="z-index: 1090;"></div>
+
+<div class="modal modal-blur fade" id="confirmModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-sm modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-status bg-danger"></div>
+      <div class="modal-body text-center py-4">
+        <span class="text-danger mb-2 d-inline-block">{{ icon("alert-triangle", "icon-lg") }}</span>
+        <h3>Підтвердження</h3>
+        <div class="text-secondary" id="confirmText"></div>
+      </div>
+      <div class="modal-footer">
+        <div class="w-100">
+          <div class="row">
+            <div class="col"><button type="button" class="btn w-100" data-bs-dismiss="modal">Скасувати</button></div>
+            <div class="col"><button type="button" class="btn btn-danger w-100" id="confirmOk">Так</button></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+<script type="application/json" id="flashData">{{ messages|tojson }}</script>
+{% endwith %}

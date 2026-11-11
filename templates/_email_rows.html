@@ -1,0 +1,12 @@
+{#- One page of rows + the loader of the next page (infinite scroll: loads when it scrolls into view). -#}
+{% from "_macros.html" import email_row with context %}
+{% for e in listing.emails %}
+{{ email_row(e, params, email is defined and email and email.id == e.id) }}
+{% endfor %}
+{% if listing.page < listing.total_pages %}
+<div class="list-loader" hx-get="{{ url_for('main.domain.show_domain', domain=domain, part='rows', page=listing.page + 1, **clean_params(params)) }}"
+     hx-trigger="intersect once" hx-swap="outerHTML">
+  <div class="spinner-border spinner-border-sm text-secondary" role="status"></div>
+  <span class="ms-2">Завантаження…</span>
+</div>
+{% endif %}

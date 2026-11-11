@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+pyvenv.cfg
+venv/
+.venv/
+.env
+.maintenance
+*.log
+*.db
+log/
+gunicorn_config.py
+*.service
+.example/

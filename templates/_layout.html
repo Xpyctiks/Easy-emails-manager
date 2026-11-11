@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="description" content="Easy Emails Manager - mail collector sorted by domains">
+  <meta name="version" content="{{ version }}">
+  <meta name="robots" content="noindex">
+  {#- back/forward buttons reload the page from the server instead of restoring htmx snapshots -#}
+  <meta name="htmx-config" content='{"historyCacheSize": 0, "refreshOnHistoryMiss": true, "defaultSwapStyle": "innerHTML"}'>
+  <title>{% block title %}Easy Emails Manager{% endblock %}{% if server_hostname %} ({{ server_hostname }}){% endif %}</title>
+  <link rel="icon" href="{{ url_for('static', filename='images/favicon.ico') }}" sizes="48x48">
+  <link rel="icon" href="{{ url_for('static', filename='images/favicon.svg') }}" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/apple-touch-icon.png') }}">
+  <link rel="manifest" href="{{ url_for('static', filename='images/site.webmanifest') }}">
+  <script>
+    //theme before the first paint (no light flash in dark mode): saved choice, otherwise the OS setting
+    (function () {
+      var t = null;
+      try { t = localStorage.getItem("eem_theme"); } catch (e) {}
+      if (t !== "light" && t !== "dark") t = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      document.documentElement.setAttribute("data-bs-theme", t);
+    })();
+  </script>
+  <link href="{{ url_for('static', filename='vendor/tabler.min.css') }}" rel="stylesheet">
+  <link href="{{ url_for('static', filename='css/app.css') }}" rel="stylesheet">
+  {% block head %}{% endblock %}
+  <script src="{{ url_for('static', filename='vendor/tabler.min.js') }}" defer></script>
+  <script src="{{ url_for('static', filename='vendor/htmx.min.js') }}" defer></script>
+  <script src="{{ url_for('static', filename='js/app.js') }}" defer></script>
+</head>
+<body class="{% block body_class %}{% endblock %}">
+<div class="app-progress" aria-hidden="true"></div>
+<div class="page">
+  <header class="navbar navbar-expand-md d-print-none app-navbar">
+    <div class="container-fluid">
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navMenu" aria-controls="navMenu" aria-expanded="false" aria-label="Меню">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <a href="/" class="navbar-brand pe-0 pe-md-3 d-flex align-items-center gap-2">
+        <img src="{{ url_for('static', filename='images/favicon.svg') }}" alt="" width="28" height="28">
+        <span>Easy Emails{% if server_hostname %} <span class="text-secondary fw-normal small d-none d-lg-inline">· {{ server_hostname }}</span>{% endif %}</span>
+      </a>
+      <div class="navbar-nav flex-row order-md-last align-items-center gap-1">
+        {% if admin %}
+        <button type="button" class="btn btn-primary btn-sm d-none d-sm-inline-flex" hx-post="/fetch/start/" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Запустити збір пошти з усіх увімкнених скриньок">
+          {{ icon("inbox") }}<span class="ms-1">Зібрати пошту</span>
+        </button>
+        {% endif %}
+        <button type="button" class="btn btn-ghost-secondary btn-icon" id="themeToggle" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Світла / темна тема" aria-label="Перемкнути тему">
+          <span class="theme-icon-light">{{ icon("moon") }}</span><span class="theme-icon-dark">{{ icon("sun") }}</span>
+        </button>
+        <div class="nav-item dropdown">
+          <a href="#" class="nav-link d-flex lh-1 p-0 px-2" data-bs-toggle="dropdown" aria-label="Меню користувача">
+            <span class="avatar avatar-sm bg-{{ current_user.username|avatar_color }}-lt">{{ current_user.realname|initials }}</span>
+            <div class="d-none d-xl-block ps-2">
+              <div>{{ current_user.realname }}</div>
+              <div class="mt-1 small text-secondary">{{ "Адміністратор" if admin else "Користувач" }}</div>
+            </div>
+          </a>
+          <div class="dropdown-menu dropdown-menu-end dropdown-menu-arrow">
+            <span class="dropdown-header">Easy Emails Manager v{{ version }}</span>
+            {% if admin %}
+            <button type="button" class="dropdown-item d-sm-none" hx-post="/fetch/start/">{{ icon("inbox", "dropdown-item-icon") }}Зібрати пошту</button>
+            {% endif %}
+            <div class="dropdown-divider"></div>
+            <form action="/logout/" method="POST" class="m-0">
+              <button type="submit" class="dropdown-item text-danger">{{ icon("logout", "dropdown-item-icon") }}Вихід</button>
+            </form>
+          </div>
+        </div>
+      </div>
+      <div class="collapse navbar-collapse" id="navMenu">
+        <ul class="navbar-nav">
+          {% set p = request.path %}
+          <li class="nav-item{% if p == '/' or p.startswith('/domain/') or p.startswith('/email/') %} active{% endif %}">
+            <a class="nav-link" href="/"><span class="nav-link-icon">{{ icon("mail") }}</span><span class="nav-link-title">Пошта</span></a>
+          </li>
+          {% if admin %}
+          <li class="nav-item{% if p.startswith('/admin_panel/') %} active{% endif %}">
+            <a class="nav-link" href="/admin_panel/"><span class="nav-link-icon">{{ icon("settings") }}</span><span class="nav-link-title">Адміністрування</span></a>
+          </li>
+          <li class="nav-item{% if p.startswith('/logs/') %} active{% endif %}">
+            <a class="nav-link" href="/logs/"><span class="nav-link-icon">{{ icon("file-text") }}</span><span class="nav-link-title">Лог</span></a>
+          </li>
+          {% endif %}
+        </ul>
+      </div>
+    </div>
+  </header>
+  {% block content %}{% endblock %}
+</div>
+{% include "_common_ui.html" %}
+{% block scripts %}{% endblock %}
+</body>
+</html>

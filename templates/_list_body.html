@@ -1,0 +1,13 @@
+{#- Body of the emails list (#emailList). Alone as an htmx answer after search/sort/bulk delete:
+    count_oob -> updates the counter in the pane header, domain_info -> updates the folder in the left pane,
+    clear_read -> empties the reading pane. -#}
+{% from "_macros.html" import domain_item, empty_state with context %}
+{% if listing.emails %}
+  {% include "_email_rows.html" %}
+{% elif params.q %}
+  {{ empty_state("search", "Нічого не знайдено", "Спробуйте інший запит.") }}
+{% else %}
+  {{ empty_state("inbox-off", "У цій папці немає листів") }}
+{% endif %}
+{% if count_oob %}<span id="listCount" hx-swap-oob="true">{{ listing.total }}</span>{% endif %}{% if domain_info %}{{ domain_item(domain_info, True, True) }}{% endif %}
+{% if clear_read %}<div id="readPane" hx-swap-oob="innerHTML">{% include "_read_empty.html" %}</div>{% endif %}

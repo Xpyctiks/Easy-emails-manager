@@ -1,0 +1,51 @@
+{#- Reusable pieces of the mail UI. Import with: {% from "_macros.html" import ... with context %} -#}
+
+{% macro avatar(name, address, size="") -%}
+<span class="avatar {{ size }} bg-{{ address|avatar_color }}-lt flex-shrink-0" aria-hidden="true">{{ name|initials(address) }}</span>
+{%- endmacro %}
+
+{% macro empty_state(icon_name, title, text="") -%}
+<div class="empty">
+  <div class="empty-icon">{{ icon(icon_name, "icon-lg") }}</div>
+  <p class="empty-title">{{ title }}</p>
+  {% if text %}<p class="empty-subtitle text-secondary">{{ text }}</p>{% endif %}
+  {{ caller() if caller }}
+</div>
+{%- endmacro %}
+
+{#- one virtual folder in the left pane; oob=True -> replaces the existing item in place (counters after deletes) -#}
+{% macro domain_item(d, active=False, oob=False) -%}
+{% set url = url_for('main.domain.show_domain', domain=d.domain) %}
+<a href="{{ url }}" id="{{ d.domain|dom_id }}" class="domain-item{% if active %} active{% endif %}"
+   hx-get="{{ url }}" hx-target="#listPane"{% if oob %} hx-swap-oob="outerHTML"{% endif %}
+   data-name="{{ d.domain }}" data-count="{{ d.count }}" data-last="{{ d.last.strftime('%Y%m%d%H%M%S') if d.last else '0' }}">
+  <span class="domain-icon">{{ icon("folder") }}</span>
+  <span class="flex-fill min-w-0">
+    <span class="d-block text-truncate domain-name" title="{{ d.domain }}">{{ d.domain }}</span>
+    <span class="d-block text-secondary small text-truncate">{{ d.last|short_date }} · {{ human_size(d.size) }}</span>
+  </span>
+  <span class="badge bg-primary-lt domain-count">{{ d.count }}</span>
+</a>
+{%- endmacro %}
+
+{#- one letter in the middle pane -#}
+{% macro email_row(e, params, active=False) -%}
+<div id="row-{{ e.id }}" class="email-row{% if active %} active{% endif %}" tabindex="0" role="button"
+     hx-get="{{ url_for('main.email_view.show_email', email_id=e.id, **clean_params(params)) }}" hx-target="#readPane">
+  {% if admin %}
+  <input class="form-check-input row-check" type="checkbox" name="email_id" value="{{ e.id }}" aria-label="Обрати лист" onclick="event.stopPropagation()">
+  {% endif %}
+  {{ avatar(e.sender_name, e.sender) }}
+  <div class="flex-fill min-w-0">
+    <div class="d-flex align-items-baseline gap-2">
+      <span class="email-sender text-truncate" title="{{ e.sender }}">{{ e.sender_name or e.sender or "(невідомий відправник)" }}</span>
+      <span class="email-date ms-auto" title="{{ e.received.strftime('%d.%m.%Y %H:%M:%S') }}">{{ e.received|short_date }}</span>
+    </div>
+    <div class="email-subject text-truncate">{{ e.subject or "(без теми)" }}</div>
+    <div class="email-meta text-truncate">
+      {% if e.has_attachments %}<span class="text-secondary" title="Є вкладення">{{ icon("paperclip", "icon-sm") }}</span>{% endif %}
+      <span title="{{ e.recipients }}">→ {{ e.recipients or "-" }}</span>
+    </div>
+  </div>
+</div>
+{%- endmacro %}

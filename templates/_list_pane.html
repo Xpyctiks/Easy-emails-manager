@@ -1,0 +1,56 @@
+{#- Middle pane. Rendered inside mail.html, or alone as an htmx answer (oob=True also clears the reading pane). -#}
+{% from "_macros.html" import empty_state with context %}
+{% set list_url = url_for('main.domain.show_domain', domain=domain) %}
+<div class="pane-header">
+  <button type="button" class="btn btn-ghost-secondary btn-icon d-lg-none" data-view-go="domains" aria-label="До доменів">{{ icon("arrow-left") }}</button>
+  <div class="flex-fill min-w-0">
+    <h3 class="pane-title text-truncate" title="{{ domain }}">{{ domain }}</h3>
+    <div class="text-secondary small">Листів: <span id="listCount">{{ listing.total }}</span>{% if params.q %} (знайдено){% endif %}</div>
+  </div>
+  {% if admin %}
+  <div class="dropdown">
+    <button type="button" class="btn btn-ghost-secondary btn-icon" data-bs-toggle="dropdown" aria-label="Дії з доменом">{{ icon("dots-vertical") }}</button>
+    <div class="dropdown-menu dropdown-menu-end">
+      <form action="{{ url_for('main.domain.remove_domain', domain=domain) }}" method="POST" class="m-0">
+        <button type="submit" class="dropdown-item text-danger" data-confirm="Видалити домен {{ domain }} разом з усіма листами ({{ domain_count }} шт.)? Це незворотно!">
+          {{ icon("trash", "dropdown-item-icon") }}Видалити домен з усіма листами
+        </button>
+      </form>
+    </div>
+  </div>
+  {% endif %}
+</div>
+<form id="listControls" class="pane-toolbar" hx-get="{{ list_url }}" hx-trigger="submit" hx-target="#emailList" hx-include="#listControls" hx-vals='{"part": "list"}' role="search">
+  <div class="input-icon flex-fill">
+    <span class="input-icon-addon">{{ icon("search") }}</span>
+    <input type="search" name="q" value="{{ params.q }}" class="form-control form-control-sm" placeholder="Тема, відправник, отримувач…" aria-label="Пошук листів"
+           hx-get="{{ list_url }}" hx-trigger="input changed delay:350ms, search">
+  </div>
+  <select name="sort" class="form-select form-select-sm w-auto" aria-label="Сортувати за" title="Сортувати за" hx-get="{{ list_url }}" hx-trigger="change" id="sortField">
+    {% for key, label in sort_labels.items() %}
+    <option value="{{ key }}"{% if params.sort == key %} selected{% endif %}>{{ label }}</option>
+    {% endfor %}
+  </select>
+  <input type="hidden" name="order" value="{{ params.order }}" id="sortOrder">
+  <button type="button" class="btn btn-sm btn-icon" id="sortOrderBtn" data-bs-toggle="tooltip" title="{{ 'За зростанням' if params.order == 'asc' else 'За спаданням' }} (натисніть, щоб змінити)" aria-label="Напрямок сортування">
+    <span class="order-asc{% if params.order != 'asc' %} d-none{% endif %}">{{ icon("sort-ascending") }}</span>
+    <span class="order-desc{% if params.order == 'asc' %} d-none{% endif %}">{{ icon("sort-descending") }}</span>
+  </button>
+</form>
+{% if admin %}
+<div class="bulk-bar d-none" id="bulkBar">
+  <input class="form-check-input m-0" type="checkbox" id="checkAll" aria-label="Обрати всі завантажені">
+  <span>Обрано: <strong id="selectedCount">0</strong></span>
+  <button type="button" class="btn btn-sm btn-danger ms-auto" hx-post="{{ url_for('main.domain.remove_emails', domain=domain) }}"
+          hx-include="#listControls, #emailList .row-check:checked" hx-target="#emailList" hx-confirm="Видалити обрані листи? Це незворотно!">
+    {{ icon("trash", "icon-sm me-1") }}Видалити
+  </button>
+  <button type="button" class="btn btn-sm" id="bulkCancel">Скасувати</button>
+</div>
+{% endif %}
+<div class="pane-body" id="emailList">
+  {% include "_list_body.html" %}
+</div>
+{% if oob %}
+<div id="readPane" hx-swap-oob="innerHTML">{% include "_read_empty.html" %}</div>
+{% endif %}

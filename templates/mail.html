@@ -1,0 +1,62 @@
+{% extends "_layout.html" %}
+{% from "_macros.html" import domain_item, empty_state with context %}
+{% block title %}{% if email %}{{ email.subject or "(без теми)" }} · {% elif domain %}{{ domain }} · {% endif %}Easy Emails Manager{% endblock %}
+{% block body_class %}mail-body{% endblock %}
+{% block content %}
+<div class="mail-app" id="mailApp" data-view="{{ pane_view }}">
+
+  {#- ---------------------------------------------------------------- left: virtual folders (domains) -#}
+  <aside class="mail-pane mail-domains" aria-label="Домени">
+    <div class="pane-header">
+      <div class="flex-fill">
+        <h3 class="pane-title">Домени</h3>
+        <div class="text-secondary small">{{ domains|length }} папок · {{ total_emails }} листів</div>
+      </div>
+    </div>
+    <div class="pane-toolbar">
+      <div class="input-icon flex-fill">
+        <span class="input-icon-addon">{{ icon("search") }}</span>
+        <input type="search" id="domainFilter" class="form-control form-control-sm" placeholder="Фільтр доменів…" aria-label="Фільтр доменів">
+      </div>
+      <select id="domainSort" class="form-select form-select-sm w-auto" aria-label="Сортування доменів" title="Сортування доменів">
+        <option value="name-asc">А→Я</option>
+        <option value="name-desc">Я→А</option>
+        <option value="last-desc">Нові</option>
+        <option value="last-asc">Старі</option>
+        <option value="count-desc">Більше</option>
+        <option value="count-asc">Менше</option>
+      </select>
+    </div>
+    <div class="pane-body" id="domainList">
+      {% for d in domains %}
+      {{ domain_item(d, d.domain == domain) }}
+      {% else %}
+      {% call empty_state("inbox-off", "Листів ще немає") %}
+        <p class="text-secondary small mb-0">Пошта збирається запитом <code>GET /fetch/run/</code>{% if admin %} або кнопкою «Зібрати пошту» вгорі{% endif %}.</p>
+      {% endcall %}
+      {% endfor %}
+      <div class="text-center text-secondary small p-3 d-none" id="noDomainMatches">Нічого не знайдено</div>
+    </div>
+    <div class="pane-footer text-secondary small">
+      {{ icon("clock", "icon-sm") }} Останній збір: {{ last_fetch.strftime('%d.%m.%Y %H:%M') if last_fetch else "ще не було" }}
+    </div>
+  </aside>
+
+  {#- ---------------------------------------------------------------- middle: emails of the domain -#}
+  <section class="mail-pane mail-list" id="listPane" aria-label="Листи">
+    {% if domain %}
+      {% include "_list_pane.html" %}
+    {% else %}
+      {{ empty_state("folders", "Оберіть домен", "Ліворуч - віртуальні папки: по одній на кожен домен, для якого є хоча б один лист.") }}
+    {% endif %}
+  </section>
+
+  {#- ---------------------------------------------------------------- right: the email -#}
+  <section class="mail-pane mail-read" id="readPane" aria-label="Лист">
+    {% include "_read_pane.html" %}
+  </section>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/mail.js') }}" defer></script>
+{% endblock %}

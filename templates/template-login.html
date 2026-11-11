@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex">
+  <title>Вхід · Easy Emails Manager{% if server_hostname %} ({{ server_hostname }}){% endif %}</title>
+  <link rel="icon" href="{{ url_for('static', filename='images/favicon.ico') }}" sizes="48x48">
+  <link rel="icon" href="{{ url_for('static', filename='images/favicon.svg') }}" type="image/svg+xml">
+  <link rel="manifest" href="{{ url_for('static', filename='images/site.webmanifest') }}">
+  <script>
+    (function () {
+      var t = null;
+      try { t = localStorage.getItem("eem_theme"); } catch (e) {}
+      if (t !== "light" && t !== "dark") t = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      document.documentElement.setAttribute("data-bs-theme", t);
+    })();
+  </script>
+  <link href="{{ url_for('static', filename='vendor/tabler.min.css') }}" rel="stylesheet">
+  <link href="{{ url_for('static', filename='css/app.css') }}" rel="stylesheet">
+  <script src="{{ url_for('static', filename='vendor/tabler.min.js') }}" defer></script>
+  <script src="{{ url_for('static', filename='js/app.js') }}" defer></script>
+</head>
+<body class="d-flex flex-column">
+<div class="page page-center">
+  <div class="container container-tight py-4">
+    <div class="text-center mb-4">
+      <a href="/" class="navbar-brand d-inline-flex align-items-center gap-2">
+        <img src="{{ url_for('static', filename='images/favicon.svg') }}" alt="" width="36" height="36">
+        <span class="fs-2">Easy Emails Manager</span>
+      </a>
+      {% if server_hostname %}<div class="text-secondary mt-1">{{ server_hostname }}</div>{% endif %}
+    </div>
+    <div class="card card-md">
+      <div class="card-body">
+        <h2 class="h2 text-center mb-4">Вхід до системи</h2>
+        <form method="POST" autocomplete="on">
+          <div class="mb-3">
+            <label class="form-label" for="username">Логін</label>
+            <input type="text" class="form-control" id="username" name="username" autocomplete="username" required autofocus>
+          </div>
+          <div class="mb-3">
+            <label class="form-label" for="password">Пароль</label>
+            <div class="input-group input-group-flat">
+              <input type="password" class="form-control" id="password" name="password" autocomplete="current-password" required>
+              <span class="input-group-text">
+                <a href="#" class="link-secondary" data-toggle-password="password" title="Показати пароль" aria-label="Показати пароль">{{ icon("eye") }}</a>
+              </span>
+            </div>
+          </div>
+          <div class="form-footer">
+            <button type="submit" class="btn btn-primary w-100" id="loginBtn">Увійти</button>
+          </div>
+        </form>
+      </div>
+    </div>
+    <div class="text-center text-secondary mt-3 small">v{{ version }}</div>
+  </div>
+</div>
+{% include "_common_ui.html" %}
+</body>
+</html>

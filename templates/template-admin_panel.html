@@ -1,0 +1,238 @@
+{% extends "_layout.html" %}
+{% block title %}Адміністрування · Easy Emails Manager{% endblock %}
+{% block content %}
+<div class="page-wrapper">
+  <div class="page-header d-print-none">
+    <div class="container-xl">
+      <div class="page-pretitle">Адміністрування</div>
+      <h2 class="page-title">{{ {"settings": "Налаштування програми", "users": "Користувачі", "mailboxes": "Поштові скриньки"}[section] }}</h2>
+    </div>
+  </div>
+  <div class="page-body">
+    <div class="container-xl">
+      <div class="row g-4">
+        <div class="col-lg-3">
+          <div class="list-group list-group-transparent mb-3 admin-nav">
+            <a href="/admin_panel/settings/" class="list-group-item list-group-item-action d-flex align-items-center gap-2{% if section == 'settings' %} active{% endif %}">{{ icon("settings") }}Налаштування</a>
+            <a href="/admin_panel/users/" class="list-group-item list-group-item-action d-flex align-items-center gap-2{% if section == 'users' %} active{% endif %}">{{ icon("users") }}Користувачі</a>
+            <a href="/admin_panel/mailboxes/" class="list-group-item list-group-item-action d-flex align-items-center gap-2{% if section == 'mailboxes' %} active{% endif %}">{{ icon("mailbox") }}Поштові скриньки</a>
+            <a href="/logs/" class="list-group-item list-group-item-action d-flex align-items-center gap-2">{{ icon("file-text") }}Лог роботи</a>
+          </div>
+        </div>
+        <div class="col-lg-9">
+
+{#- ================================================================ SETTINGS -#}
+{% if section == "settings" %}
+<form action="/admin_panel/" method="POST" autocomplete="off">
+  {% for title, group_icon, items in groups %}
+  <div class="card mb-3">
+    <div class="card-header"><h3 class="card-title d-flex align-items-center gap-2">{{ icon(group_icon) }}{{ title }}</h3></div>
+    <div class="card-body">
+      {% for s in items %}
+      <div class="row mb-3 align-items-start">
+        <label class="col-md-4 col-form-label" for="set-{{ s.name }}">{{ s.label }}<br><code class="small text-secondary">{{ s.name }}</code></label>
+        <div class="col-md-8">
+          {% if s.type == "bool" %}
+          <label class="form-check form-switch mt-2">
+            <input class="form-check-input" type="checkbox" id="set-{{ s.name }}" name="{{ s.name }}" value="true"{% if settings[s.name] == "true" %} checked{% endif %}>
+            <span class="form-check-label switch-label-on">Увімкнено</span>
+            <span class="form-check-label switch-label-off">Вимкнено</span>
+          </label>
+          {% elif s.type == "choice" %}
+          <div class="form-selectgroup">
+            {% for value, choice_title in s.choices.items() %}
+            <label class="form-selectgroup-item">
+              <input type="radio" name="{{ s.name }}" value="{{ value }}" class="form-selectgroup-input"{% if settings[s.name] == value %} checked{% endif %}>
+              <span class="form-selectgroup-label">{{ choice_title }}</span>
+            </label>
+            {% endfor %}
+          </div>
+          {% elif s.type == "secret" %}
+          <div class="input-group">
+            <input type="password" class="form-control font-monospace" id="set-{{ s.name }}" name="{{ s.name }}" value="{{ settings[s.name] }}" autocomplete="new-password">
+            <button class="btn btn-icon" type="button" data-toggle-password="set-{{ s.name }}" title="Показати / сховати" aria-label="Показати / сховати">{{ icon("eye") }}</button>
+          </div>
+          {% else %}
+          <input type="{{ 'number' if s.type == 'int' else 'text' }}" class="form-control{% if s.type == 'path' %} font-monospace{% endif %}" id="set-{{ s.name }}" name="{{ s.name }}" value="{{ settings[s.name] }}"{% if s.type == 'int' %} min="1"{% endif %}>
+          {% endif %}
+          {% if s.help %}<small class="form-hint mt-1">{{ s.help }}</small>{% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+  <div class="card card-sticky-footer">
+    <div class="card-body d-flex justify-content-end">
+      <button type="submit" class="btn btn-primary" name="buttonSaveSettings" data-confirm="Зберегти нові налаштування?">{{ icon("device-floppy", "me-1") }}Зберегти налаштування</button>
+    </div>
+  </div>
+</form>
+
+{#- ================================================================ USERS -#}
+{% elif section == "users" %}
+<div class="card mb-3">
+  <div class="table-responsive">
+    <table class="table table-vcenter card-table">
+      <thead>
+        <tr><th>Користувач</th><th>Логін</th><th>Роль</th><th>Створений</th><th class="w-1"></th></tr>
+      </thead>
+      <tbody>
+        {% for u in users %}
+        <tr>
+          <td>
+            <div class="d-flex align-items-center gap-2">
+              <span class="avatar avatar-sm bg-{{ u.username|avatar_color }}-lt">{{ u.realname|initials }}</span>
+              <span>{{ u.realname }}{% if u.id == current_user.id %} <span class="badge bg-azure-lt ms-1">це ви</span>{% endif %}</span>
+            </div>
+          </td>
+          <td class="text-secondary">{{ u.username }}</td>
+          <td>
+            {% if u.rights == admin_rights %}<span class="badge bg-purple-lt">{{ icon("crown", "icon-sm me-1") }}{{ role_names[u.rights] }}</span>
+            {% else %}<span class="badge bg-secondary-lt">{{ icon("user", "icon-sm me-1") }}{{ role_names.get(u.rights, u.rights) }}</span>{% endif %}
+          </td>
+          <td class="text-secondary text-nowrap">{{ u.created.strftime("%d.%m.%Y %H:%M") if u.created else "" }}</td>
+          <td>
+            <div class="btn-list flex-nowrap">
+              <form action="/admin_panel/" method="POST" class="m-0">
+                <button type="submit" class="btn btn-sm btn-icon" name="buttonSetRole" value="{{ u.id }}"
+                  data-confirm="{{ 'Зробити ' ~ u.username ~ ' звичайним користувачем (тільки перегляд)?' if u.rights == admin_rights else 'Зробити ' ~ u.username ~ ' адміністратором?' }}"
+                  data-bs-toggle="tooltip" title="{{ 'Зробити звичайним користувачем' if u.rights == admin_rights else 'Зробити адміністратором' }}">{{ icon("user" if u.rights == admin_rights else "crown") }}</button>
+              </form>
+              <button type="button" class="btn btn-sm btn-icon" data-bs-toggle="collapse" data-bs-target="#pwd-{{ u.id }}" title="Змінити пароль" aria-label="Змінити пароль">{{ icon("key") }}</button>
+              {% if u.id != current_user.id %}
+              <form action="/admin_panel/" method="POST" class="m-0">
+                <button type="submit" class="btn btn-sm btn-icon btn-ghost-danger" name="buttonDeleteUser" value="{{ u.id }}" data-confirm="Видалити користувача {{ u.username }}?" data-bs-toggle="tooltip" title="Видалити користувача">{{ icon("trash") }}</button>
+              </form>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        <tr class="collapse" id="pwd-{{ u.id }}">
+          <td colspan="5" class="bg-body-tertiary">
+            <form action="/admin_panel/" method="POST" class="d-flex gap-2 align-items-center" autocomplete="off">
+              <span class="text-secondary small text-nowrap">Новий пароль для {{ u.username }}:</span>
+              <input type="password" class="form-control form-control-sm" name="password-{{ u.id }}" autocomplete="new-password" required>
+              <button type="submit" class="btn btn-sm btn-primary text-nowrap" name="buttonSetPassword" value="{{ u.id }}">{{ icon("device-floppy", "icon-sm me-1") }}Зберегти</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+<div class="card">
+  <div class="card-header"><h3 class="card-title d-flex align-items-center gap-2">{{ icon("user-plus") }}Новий користувач</h3></div>
+  <form action="/admin_panel/" method="POST" class="card-body needs-validation" novalidate autocomplete="off">
+    <div class="row g-3">
+      <div class="col-md-6"><label class="form-label required">Логін</label><input type="text" class="form-control" name="new-username" required></div>
+      <div class="col-md-6"><label class="form-label required">Ім'я</label><input type="text" class="form-control" name="new-realname" required></div>
+      <div class="col-md-6"><label class="form-label required">Пароль</label><input type="password" class="form-control" name="new-password" autocomplete="new-password" required></div>
+      <div class="col-md-6">
+        <label class="form-label">Роль</label>
+        <div class="form-selectgroup w-100">
+          <label class="form-selectgroup-item flex-fill"><input type="radio" name="new-role" value="user" class="form-selectgroup-input" checked><span class="form-selectgroup-label">Користувач (перегляд)</span></label>
+          <label class="form-selectgroup-item flex-fill"><input type="radio" name="new-role" value="admin" class="form-selectgroup-input"><span class="form-selectgroup-label">Адміністратор</span></label>
+        </div>
+      </div>
+    </div>
+    <div class="mt-3 text-end"><button type="submit" class="btn btn-primary" name="buttonAddUser">{{ icon("user-plus", "me-1") }}Створити</button></div>
+  </form>
+</div>
+
+{#- ================================================================ MAILBOXES -#}
+{% elif section == "mailboxes" %}
+<div class="card mb-3">
+  <div class="card-body d-flex flex-wrap align-items-center gap-3">
+    <form action="/fetch/start/" method="POST" class="m-0">
+      <input type="hidden" name="back" value="/admin_panel/mailboxes/">
+      <button type="submit" class="btn btn-primary">{{ icon("inbox", "me-1") }}Зібрати пошту з усіх увімкнених</button>
+    </form>
+    {% if fetch_running %}<span class="badge bg-warning-lt">{{ icon("refresh", "icon-sm me-1") }}Збір виконується</span>{% endif %}
+    <div class="ms-auto text-secondary small">
+      Видалення з сервера: <span class="badge {{ 'bg-red-lt' if settings.deleteFromServer == 'true' else 'bg-secondary-lt' }}">{{ 'увімкнено' if settings.deleteFromServer == 'true' else 'вимкнено' }}</span>
+      · Сортування: <span class="badge bg-blue-lt">{{ 'за отримувачем' if settings.sortBy == 'recipient' else 'за відправником' }}</span>
+      · <a href="/admin_panel/settings/">змінити</a>
+    </div>
+  </div>
+</div>
+
+{% for m in mailboxes %}
+{% set p = "mb" ~ m.id ~ "-" %}
+{% set failed = (m.last_status or "").startswith("ERROR") %}
+<div class="card mb-3{% if not m.enabled %} opacity-75{% endif %}">
+  <div class="card-status-start {{ 'bg-danger' if failed else ('bg-success' if m.enabled else 'bg-secondary') }}"></div>
+  <div class="card-body">
+    <div class="d-flex flex-wrap align-items-start gap-3">
+      <span class="avatar bg-{{ m.name|avatar_color }}-lt">{{ icon("mailbox") }}</span>
+      <div class="flex-fill min-w-0">
+        <h3 class="card-title mb-1">{{ m.name }}
+          {% if m.enabled %}<span class="badge bg-green-lt ms-1">увімкнена</span>{% else %}<span class="badge bg-secondary-lt ms-1">вимкнена</span>{% endif %}
+        </h3>
+        <div class="text-secondary small text-break">{{ m.username }} @ {{ m.host }}:{{ m.port }} · {{ security_choices.get(m.security, m.security) }} · папки: {{ m.folders }}</div>
+        <div class="small mt-1">
+          {{ icon("clock", "icon-sm") }} {{ m.last_fetch.strftime("%d.%m.%Y %H:%M:%S") if m.last_fetch else "ще не збиралась" }}
+          {% if m.last_status %}· <span class="{{ 'text-danger' if failed else 'text-secondary' }}">{{ m.last_status }}</span>{% endif %}
+          · листів у базі: <strong>{{ counts.get(m.id, 0) }}</strong>
+        </div>
+      </div>
+      <form action="/admin_panel/" method="POST" class="btn-list m-0">
+        <button type="submit" class="btn btn-sm" name="buttonTestMailbox" value="{{ m.id }}" data-bs-toggle="tooltip" title="Перевірити підключення">{{ icon("plug-connected", "icon-sm me-1") }}Тест</button>
+        <button type="submit" class="btn btn-sm" formaction="/fetch/start/" name="mailbox_id" value="{{ m.id }}" data-bs-toggle="tooltip" title="Зібрати пошту лише з цієї скриньки">{{ icon("inbox", "icon-sm me-1") }}Зібрати</button>
+        <button type="submit" class="btn btn-sm" name="buttonToggleMailbox" value="{{ m.id }}">{{ icon("player-pause" if m.enabled else "player-play", "icon-sm me-1") }}{{ "Вимкнути" if m.enabled else "Увімкнути" }}</button>
+        <button type="button" class="btn btn-sm" data-bs-toggle="collapse" data-bs-target="#edit-{{ m.id }}">{{ icon("settings", "icon-sm me-1") }}Змінити</button>
+        <button type="submit" class="btn btn-sm btn-ghost-danger btn-icon" name="buttonDeleteMailbox" value="{{ m.id }}" data-confirm="Видалити скриньку {{ m.name }}? Вже зібрані листи залишаться." data-bs-toggle="tooltip" title="Видалити скриньку">{{ icon("trash", "icon-sm") }}</button>
+        <input type="hidden" name="back" value="/admin_panel/mailboxes/">
+      </form>
+    </div>
+    <div class="collapse" id="edit-{{ m.id }}">
+      <form action="/admin_panel/" method="POST" class="border-top mt-3 pt-3" autocomplete="off">
+        <div class="row g-2">
+          <div class="col-md-4"><label class="form-label">Назва</label><input class="form-control" name="{{ p }}name" value="{{ m.name }}"></div>
+          <div class="col-md-5"><label class="form-label">IMAP сервер</label><input class="form-control" name="{{ p }}host" value="{{ m.host }}"></div>
+          <div class="col-md-3"><label class="form-label">Порт</label><input class="form-control" name="{{ p }}port" value="{{ m.port }}"></div>
+          <div class="col-md-4"><label class="form-label">Шифрування</label>
+            <select class="form-select" name="{{ p }}security">{% for value, title in security_choices.items() %}<option value="{{ value }}"{% if m.security == value %} selected{% endif %}>{{ title }}</option>{% endfor %}</select></div>
+          <div class="col-md-4"><label class="form-label">Логін</label><input class="form-control" name="{{ p }}username" value="{{ m.username }}"></div>
+          <div class="col-md-4"><label class="form-label">Пароль</label><input type="password" class="form-control" name="{{ p }}password" placeholder="не змінювати" autocomplete="new-password"></div>
+          <div class="col-12"><label class="form-label">Папки IMAP (через кому)</label><input class="form-control" name="{{ p }}folders" value="{{ m.folders }}"></div>
+        </div>
+        <div class="mt-3 text-end"><button type="submit" class="btn btn-primary" name="buttonEditMailbox" value="{{ m.id }}">{{ icon("device-floppy", "me-1") }}Зберегти</button></div>
+      </form>
+    </div>
+  </div>
+</div>
+{% else %}
+<div class="card mb-3"><div class="card-body">
+  <div class="empty"><div class="empty-icon">{{ icon("mailbox", "icon-lg") }}</div><p class="empty-title">Поштових скриньок ще немає</p><p class="empty-subtitle text-secondary">Додайте першу скриньку нижче.</p></div>
+</div></div>
+{% endfor %}
+
+<div class="card">
+  <div class="card-header"><h3 class="card-title d-flex align-items-center gap-2">{{ icon("mailbox") }}Нова поштова скринька</h3></div>
+  <form action="/admin_panel/" method="POST" class="card-body needs-validation" novalidate autocomplete="off">
+    <div class="row g-3">
+      <div class="col-md-4"><label class="form-label required">Назва</label><input type="text" class="form-control" name="new-name" required></div>
+      <div class="col-md-5"><label class="form-label required">IMAP сервер</label><input type="text" class="form-control" name="new-host" placeholder="imap.example.com" required></div>
+      <div class="col-md-3"><label class="form-label">Порт</label><input type="number" class="form-control" name="new-port" id="newPort" placeholder="993"></div>
+      <div class="col-md-4"><label class="form-label">Шифрування</label>
+        <select class="form-select" name="new-security" id="newSecurity">{% for value, title in security_choices.items() %}<option value="{{ value }}">{{ title }}</option>{% endfor %}</select></div>
+      <div class="col-md-4"><label class="form-label required">Логін</label><input type="text" class="form-control" name="new-username" required></div>
+      <div class="col-md-4"><label class="form-label required">Пароль</label><input type="password" class="form-control" name="new-password" autocomplete="new-password" required></div>
+      <div class="col-12"><label class="form-label">Папки IMAP (через кому)</label><input type="text" class="form-control" name="new-folders" value="INBOX"></div>
+    </div>
+    <div class="mt-3 text-end"><button type="submit" class="btn btn-primary" name="buttonAddMailbox">{{ icon("check", "me-1") }}Додати скриньку</button></div>
+  </form>
+</div>
+{% endif %}
+
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/admin_panel.js') }}" defer></script>
+{% endblock %}

@@ -1,0 +1,79 @@
+{#- Right pane: the email (or an empty state). Rendered inside mail.html or alone as an htmx answer. -#}
+{% from "_macros.html" import avatar with context %}
+{% if not email %}
+  {% include "_read_empty.html" %}
+{% else %}
+{% set view_url = url_for('main.email_view.show_email', email_id=email.id, **clean_params(params)) %}
+<div class="pane-header read-header" data-email-id="{{ email.id }}">
+  <button type="button" class="btn btn-ghost-secondary btn-icon d-lg-none" data-view-go="list" aria-label="До списку листів">{{ icon("arrow-left") }}</button>
+  <h3 class="pane-title flex-fill min-w-0 text-truncate" title="{{ view.subject or email.subject }}">{{ view.subject or email.subject or "(без теми)" }}</h3>
+  <div class="btn-list flex-nowrap">
+    <a href="{{ url_for('main.email_view.download_raw', email_id=email.id) }}" class="btn btn-ghost-secondary btn-icon" data-bs-toggle="tooltip" title="Завантажити оригінал (.eml)" aria-label="Завантажити .eml">{{ icon("download") }}</a>
+    {% if admin %}
+    <button type="button" class="btn btn-ghost-danger btn-icon" hx-post="{{ url_for('main.email_view.remove_email', email_id=email.id) }}" hx-include="#listControls"
+            hx-target="#readPane" hx-confirm="Видалити цей лист? Це незворотно!" data-bs-toggle="tooltip" title="Видалити лист" aria-label="Видалити лист">{{ icon("trash") }}</button>
+    {% endif %}
+  </div>
+</div>
+<div class="pane-body read-body">
+  <div class="read-meta">
+    {{ avatar(email.sender_name, email.sender, "avatar-md") }}
+    <div class="flex-fill min-w-0">
+      <div class="text-break"><strong>{{ email.sender_name or email.sender }}</strong>{% if email.sender_name %} <span class="text-secondary">&lt;{{ email.sender }}&gt;</span>{% endif %}</div>
+      <div class="text-secondary small text-break">Кому: {{ view.to or "-" }}</div>
+      {% if view.cc %}<div class="text-secondary small text-break">Копія: {{ view.cc }}</div>{% endif %}
+    </div>
+    <div class="text-end small text-secondary flex-shrink-0">
+      <div class="text-body" title="Отримано сервером">{{ email.received.strftime('%d.%m.%Y %H:%M') }}</div>
+      <div title="Скринька / папка IMAP">{{ email.mailbox_name }} · {{ email.imap_folder }}</div>
+      <div>{{ human_size(email.size) }}</div>
+    </div>
+  </div>
+
+  {% if view.attachments %}
+  <div class="read-attachments">
+    {% for a in view.attachments %}
+    <a class="attachment-chip" href="{{ url_for('main.email_view.download_attachment', email_id=email.id, index=a.index) }}" title="Завантажити {{ a.filename }}">
+      {{ icon("paperclip", "icon-sm") }}<span class="text-truncate">{{ a.filename }}</span><span class="text-secondary">{{ human_size(a.size) }}</span>
+    </a>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <ul class="nav nav-tabs read-tabs" role="tablist">
+    {% if html %}<li class="nav-item" role="presentation"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tabHtml" type="button" role="tab">{{ icon("code", "icon-sm me-1") }}HTML</button></li>{% endif %}
+    <li class="nav-item" role="presentation"><button class="nav-link{% if not html %} active{% endif %}" data-bs-toggle="tab" data-bs-target="#tabText" type="button" role="tab">{{ icon("text-caption", "icon-sm me-1") }}Текст</button></li>
+    <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabHeaders" type="button" role="tab">{{ icon("list-details", "icon-sm me-1") }}Заголовки</button></li>
+    {% if html and (has_remote or allow_images) %}
+    <li class="nav-item ms-auto">
+      {% if allow_images %}
+      <button type="button" class="nav-link" hx-get="{{ view_url }}" hx-target="#readPane">{{ icon("photo-off", "icon-sm me-1") }}Сховати зображення</button>
+      {% else %}
+      <button type="button" class="nav-link text-warning" hx-get="{{ url_for('main.email_view.show_email', email_id=email.id, images=1, **clean_params(params)) }}" hx-target="#readPane"
+              data-bs-toggle="tooltip" title="Зовнішні зображення заблоковані - вони можуть бути трекерами">{{ icon("photo", "icon-sm me-1") }}Показати зображення</button>
+      {% endif %}
+    </li>
+    {% endif %}
+  </ul>
+  <div class="tab-content read-content">
+    {% if html %}
+    <div class="tab-pane active" id="tabHtml" role="tabpanel">
+      {#- sandbox without allow-scripts/allow-same-origin: the letter can't run code or touch this site -#}
+      <iframe class="email-frame" sandbox="allow-popups allow-popups-to-escape-sandbox" referrerpolicy="no-referrer" srcdoc="{{ html }}" title="Вміст листа"></iframe>
+    </div>
+    {% endif %}
+    <div class="tab-pane{% if not html %} active{% endif %}" id="tabText" role="tabpanel">
+      <pre class="email-text">{{ view.text or ("(текстової версії немає)" if html else "(лист порожній)") }}</pre>
+    </div>
+    <div class="tab-pane" id="tabHeaders" role="tabpanel">
+      <div class="table-responsive">
+        <table class="table table-sm table-striped small mb-0">
+          {% for name, value in view.headers %}
+          <tr><th class="text-nowrap" style="width: 1%">{{ name }}</th><td class="text-break">{{ value }}</td></tr>
+          {% endfor %}
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
