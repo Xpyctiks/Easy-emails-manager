@@ -10,34 +10,40 @@ Version: **1.0.0**
 
 - **Collection on a GET request.** `GET /fetch/run/` returns `200` right away and starts collecting in the background. You can call it from cron, monitoring or a webhook.
 - **Sorting by domain.** Messages are sorted by the sender's domain (`From` → `Sender` → `Return-Path`) or the recipient's domain (a configurable header list, default `To,Cc,X-Original-To,Delivered-To`). If a message has several domains, it goes either to the first one or into every folder as a copy. You can list domains to ignore (for example the collector mailbox's own domain in a catch-all forwarding setup).
-- **Main page.** It shows one folder per unique domain that has at least one message, with the message count, the date of the last message and the total size. You can filter and sort the folders.
-- **Domain page.** It shows a table of messages (received date, from, to, subject, attachments, size, mailbox). You can sort by any column on the server side, search, page through results and pick how many rows to show per page.
+- **Three-pane mail interface.** On the left are the virtual folders, one per domain that has at least one message, with the message count, the date of the last message and the total size; you can filter and sort them. In the middle are the messages of the selected domain: sort by received date, sender, recipient, subject, size or mailbox (on the server side), search, and scroll to load more. On the right is the open message. Panes are updated without reloading the page (htmx), every state has its own URL, and the ↑/↓ (J/K) keys move through the messages. On a phone the panes are shown one at a time. Light and dark themes.
 - **Message view.** The HTML body is shown in a sandboxed iframe: scripts are disabled and remote images are blocked until you choose to show them. You can also see the plain text and the full headers, download attachments, and download the original `.eml`.
+- **Replies.** Any user (admin or user) can answer a message right from the reading pane (button or the R key). The reply's sender is, by default, the address the message was sent **to** (for example `info@site-a.com`), and it goes out through the SMTP server configured for the mailbox the message was collected from. The reply gets correct `In-Reply-To`/`References` headers, can carry attachments, and a copy is stored in the same domain folder, marked "Надіслано". The answered message lists the replies sent to it.
 - **Optional deletion on the server.** A message is removed from the IMAP server only *after* its file is written and its database rows are committed.
-- **Admin panel.** It has three sections: general settings, users and IMAP mailboxes. For mailboxes you can add, edit, enable or disable, test the connection and collect from one mailbox right away.
-- **Roles.** **Admin** gets the admin panel, settings, the log, and can delete messages and domains. **User** is read-only and sees all domains and messages.
+- **Admin panel.** It has three sections: general settings, users and mailboxes. For each mailbox you set the IMAP account (collecting) and, optionally, the SMTP server (replies); you can test IMAP and SMTP, enable or disable the mailbox and collect from it right away.
+- **Roles.** **Admin** gets the admin panel, settings, the log, and can delete messages and domains. **User** sees all domains and messages and can reply to them, but cannot delete anything or open the admin panel. Both roles can reply.
 - **CLI** for every main operation.
 - **Storage.** Metadata is kept in **MySQL**. The message bodies are stored as `.eml` files in `<storagePath>/<domain>/`.
 
 ## Technology Stack
 
-Python 3.11+, Flask, Flask-Login, Flask-SQLAlchemy (SQLAlchemy 2), PyMySQL, click, Bootstrap 5. IMAP uses the standard library `imaplib`.
+Python 3.11+, Flask, Flask-Login, Flask-SQLAlchemy (SQLAlchemy 2), PyMySQL, click. IMAP and SMTP use the standard library (`imaplib`, `smtplib`).
+
+UI: [Tabler](https://tabler.io) 1.7.1 (a Bootstrap 5 admin theme) and [htmx](https://htmx.org) 2.0.11, both stored locally in `static/vendor/` (no CDN), plus icons from Tabler Icons 3.49.0 embedded as inline SVG (`functions/icons.py`). There is no Node.js build step.
 
 ## Project Layout
 
 ```
 main.py                  Flask app + CLI entry point
-db/                      SQLAlchemy models, MySQL URI from .env
+db/                      SQLAlchemy models, MySQL URI from .env, automatic adding of new columns
 functions/               business logic
   load_config.py         SETTINGS_SCHEMA - every setting, defaults, validation
   mail_fetch_func.py     IMAP collection (background thread, locks)
   mail_parse_func.py     metadata, domain classification, bodies/attachments
   mail_storage_func.py   .eml files on disk
-  domains_func.py        queries for the folders / emails table
+  mail_send_func.py      replies: SMTP connection, reply defaults, sending, stored copy
+  domains_func.py        queries for the folders / emails list
+  ui_func.py             htmx helpers, three-pane page context, Jinja filters
+  icons.py               inline SVG icons
   users_func.py, mailbox_func.py   shared by the admin panel and the CLI
   cli_management.py      CLI commands
 pages/                   Flask blueprints (routes)
-templates/, static/      UI
+templates/               mail.html (three panes) + _*.html fragments returned to htmx, admin panel, login, logs
+static/                  css/app.css, js/app.js (shared), js/mail.js (mail page), vendor/ (Tabler, htmx)
 ```
 
 ## Installation
@@ -77,6 +83,8 @@ python main.py set logFile /var/log/easy-emails-manager.log
 python main.py user add admin "Administrator" 'S3cret!' --admin
 python main.py mailbox add main imap.example.com collector@example.com 'mailbox-password'
 python main.py mailbox test main
+python main.py mailbox upd main --smtp-host smtp.example.com --smtp-security ssl   # optional: replies
+python main.py mailbox smtptest main
 python main.py fetch run                         # the first collection, in the foreground
 ```
 
@@ -111,6 +119,20 @@ Messages that have no usable address go to the `_unknown` folder.
 
 Changing `sortBy`, `recipientHeaders`, `multiDomainMode` or `ignoreDomains` affects only newly collected messages. Messages that are already sorted are not moved.
 
+## Replies
+
+Replies are sent through the SMTP server of the mailbox the answered message was collected from (Admin panel → Mailboxes → Змінити → SMTP). An empty SMTP server means replies are disabled for that mailbox, and the reply button is greyed out with the reason. An empty SMTP login means the IMAP login and password are used.
+
+The reply form is prefilled:
+
+- **Від (From):** the address the message was sent to. The candidates are taken from the message's `To`, `Cc`, `X-Original-To`, `Delivered-To` and `Envelope-To`; the default is the one whose domain is the message's folder, otherwise the first `To` address. You can pick another candidate or type any address.
+- **Кому (To):** `Reply-To` of the message, otherwise its `From`.
+- **Тема:** `Re: <subject>`. The body contains the quoted original text.
+
+The SMTP envelope sender (`MAIL FROM`) is the SMTP login when it is an email address, otherwise the reply's From. Most providers only accept a From that the account owns, so the SMTP account must be allowed to send as those addresses (aliases, a catch-all domain on your own mail server, or a relay).
+
+Both roles (admin and user) can reply; the stored copy records who sent it. You cannot reply to a stored reply (a message marked "Надіслано"). Attachments are limited to 20 MB in total. Ctrl+Enter in the reply text sends it.
+
 ## Settings
 
 All settings are stored in the `settings` table (row `id=1`). You can edit them in **Admin panel → Settings** or with `python main.py set <name> <value>`.
@@ -123,14 +145,16 @@ All settings are stored in the `settings` table (row `id=1`). You can edit them 
 | `multiDomainMode` | `first` | `first`: only the first domain; `all`: a copy in every domain folder |
 | `ignoreDomains` | *(empty)* | Comma-separated domains that are never used as a folder |
 | `deleteFromServer` | `false` | Delete messages from the IMAP server after they are stored |
-| `imapTimeout` | `60` | IMAP socket timeout, in seconds |
+| `imapTimeout` | `60` | IMAP and SMTP socket timeout, in seconds |
 | `fetchToken` | *(empty)* | When set, `GET /fetch/run/` requires `?token=` |
 | `logFile` | `/var/log/easy-emails-manager.log` | Log file (applied after a restart) |
 | `sessionKey` | random | Flask session key (applied after a restart) |
 | `telegramChat`, `telegramToken` | *(empty)* | Error notifications |
 | `serverHostname` | *(empty)* | Shown in page titles and in notifications |
 
-To add a setting, add a column to `Settings` (`db/database.py`) and an entry to `SETTINGS_SCHEMA` (`functions/load_config.py`). The admin form and the CLI pick it up automatically. `db.create_all()` does not alter existing tables, so add new columns to an existing database with `ALTER TABLE`.
+To add a setting, add a column to `Settings` (`db/database.py`) and an entry to `SETTINGS_SCHEMA` (`functions/load_config.py`). The admin form and the CLI pick it up automatically.
+
+On every start, columns that exist in the models but are missing in an existing database are added automatically (`db/schema_upgrade.py`, always as NULL-able columns with the model default). Nothing is ever dropped or changed: renaming a column or changing its type still needs a manual `ALTER TABLE`.
 
 ## CLI Reference
 
@@ -147,8 +171,10 @@ set                                  # list all settings
 set <name> <value>                   # e.g. set deleteFromServer on
 
 mailbox add <name> <host> <login> <password> [--security ssl|starttls|none] [--port N] [--folders INBOX,Archive]
+            [--smtp-host H] [--smtp-port N] [--smtp-security ssl|starttls|none] [--smtp-username U] [--smtp-password P]
 mailbox upd <id|name> [--name ..] [--host ..] [--username ..] [--password ..] [--security ..] [--port ..] [--folders ..]
-mailbox enable|disable|test|del <id|name>
+            [--smtp-host ..] [--smtp-port ..] [--smtp-security ..] [--smtp-username ..] [--smtp-password ..]
+mailbox enable|disable|test|smtptest|del <id|name>
 
 fetch run [--mailbox <id|name>]      # collect now, in the foreground
 domain del <domain> [--yes]          # delete a domain folder with all its messages
@@ -161,9 +187,10 @@ version
 
 | Route | Access | Purpose |
 |---|---|---|
-| `GET /` | user | Virtual domain folders |
-| `GET /domain/<domain>/` | user | Messages of a domain (`sort`, `order`, `q`, `page`, `per_page`) |
-| `GET /email/<id>/` | user | View a message (`?images=1` shows remote images) |
+| `GET /` | user | Mail page, no domain selected |
+| `GET /domain/<domain>/` | user | Mail page with a domain open (`sort`, `order`, `q`); for htmx: the list pane, `part=list` (list body), `part=rows&page=N` (next rows) |
+| `GET /email/<id>/` | user | Mail page with a message open (`?images=1` shows remote images); for htmx: the reading pane |
+| `GET /email/<id>/reply/`, `POST /email/<id>/reply/` | admin | Reply form / send the reply |
 | `GET /email/<id>/raw/`, `/email/<id>/attachment/<n>/` | user | Downloads |
 | `POST /email/<id>/delete/`, `/domain/<domain>/delete/`, `/domain/<domain>/delete_emails/` | admin | Deletion |
 | `GET /fetch/run/` | token | Start collection (cron) |
@@ -176,10 +203,6 @@ When the file `.maintenance` exists in the project root, every request gets a 50
 
 ## Security Notes
 
-- Mailbox passwords are stored in the database in plain text, the same way the example project stores its API tokens. Restrict access to the database and use app-specific passwords where your provider offers them.
+- Mailbox passwords (IMAP and SMTP) are stored in the database in plain text, the same way the example project stores its API tokens. Restrict access to the database and use app-specific passwords where your provider offers them.
 - Email HTML is shown only inside `<iframe sandbox>` with a restrictive CSP. Attachments are always served as downloads (`Content-Disposition: attachment`, `nosniff`).
 - Deleting a mailbox removes its UID ledger. If you add the same mailbox again while `deleteFromServer` is off, its messages are imported again.
-
-## Development
-
-To use SQLite instead of MySQL, set `DB_URI=sqlite:///dev.db` in `.env`. This is for development only: the cross-process lock works only with MySQL.

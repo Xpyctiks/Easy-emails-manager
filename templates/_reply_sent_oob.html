@@ -1,0 +1,5 @@
+{#- After a reply is sent: the copy is stored in the domain folder, so refresh the list and the folder counter. -#}
+{% from "_macros.html" import domain_item with context %}
+<div id="emailList" hx-swap-oob="innerHTML">{% include "_email_rows.html" %}</div>
+<span id="listCount" hx-swap-oob="true">{{ listing.total }}</span>
+{% if domain_info %}{{ domain_item(domain_info, True, True) }}{% endif %}

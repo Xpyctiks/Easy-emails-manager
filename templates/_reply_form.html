@@ -1,0 +1,55 @@
+{#- Reply form in the reading pane. `reply` = form values (+ error, from_choices); `email` = the answered email. -#}
+{% set view_url = url_for('main.email_view.show_email', email_id=email.id, **clean_params(params)) %}
+<form class="reply-form" hx-post="{{ url_for('main.reply.reply_send', email_id=email.id) }}" hx-target="#readPane"
+      hx-encoding="multipart/form-data" hx-include="#listControls" hx-disabled-elt="find button[type=submit]"
+      action="{{ url_for('main.reply.reply_send', email_id=email.id) }}" method="POST" enctype="multipart/form-data" autocomplete="off">
+  {% for key, value in clean_params(params).items() %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endfor %}
+  <div class="pane-header read-header">
+    <button type="button" class="btn btn-ghost-secondary btn-icon" hx-get="{{ view_url }}" hx-target="#readPane" data-bs-toggle="tooltip" title="Назад до листа" aria-label="Назад до листа">{{ icon("arrow-left") }}</button>
+    <h3 class="pane-title flex-fill min-w-0 text-truncate">Відповідь: {{ view.subject or email.subject or "(без теми)" }}</h3>
+    <button type="button" class="btn btn-ghost-secondary d-none d-sm-inline-flex" hx-get="{{ view_url }}" hx-target="#readPane">Скасувати</button>
+    <button type="submit" class="btn btn-primary"{% if reply_block %} disabled{% endif %}>
+      <span class="spinner-border spinner-border-sm me-2 send-spinner" role="status"></span>{{ icon("send", "me-1 send-icon") }}Надіслати
+    </button>
+  </div>
+  <div class="pane-body read-body">
+    {% if reply.error %}
+    <div class="alert alert-danger mb-0" role="alert">{{ reply.error }}</div>
+    {% endif %}
+    <div class="card">
+      <div class="card-body reply-fields">
+        <div class="row g-2 align-items-center mb-2">
+          <label class="col-sm-2 col-form-label text-secondary" for="replyFrom">Від</label>
+          <div class="col-sm-10">
+            <div class="input-group">
+              <input type="text" class="form-control w-auto flex-grow-0" style="max-width: 40%;" name="from_name" value="{{ reply.from_name }}" placeholder="Ім'я (необов'язково)" aria-label="Ім'я відправника">
+              <input type="email" class="form-control" id="replyFrom" name="from_addr" value="{{ reply.from_addr }}" list="replyFromChoices" required placeholder="адреса відправника">
+            </div>
+            <datalist id="replyFromChoices">
+              {% for name, address in reply.from_choices or [] %}<option value="{{ address }}">{{ name }}</option>{% endfor %}
+            </datalist>
+            <small class="form-hint">За замовчуванням - адреса, на яку прийшов лист. Сервер SMTP повинен дозволяти надсилання від імені цієї адреси.</small>
+          </div>
+        </div>
+        <div class="row g-2 align-items-center mb-2">
+          <label class="col-sm-2 col-form-label text-secondary" for="replyTo">Кому</label>
+          <div class="col-sm-10"><input type="text" class="form-control" id="replyTo" name="to" value="{{ reply.to }}" required></div>
+        </div>
+        <div class="row g-2 align-items-center mb-2">
+          <label class="col-sm-2 col-form-label text-secondary" for="replyCc">Копія</label>
+          <div class="col-sm-10"><input type="text" class="form-control" id="replyCc" name="cc" value="{{ reply.cc }}" placeholder="через кому (необов'язково)"></div>
+        </div>
+        <div class="row g-2 align-items-center">
+          <label class="col-sm-2 col-form-label text-secondary" for="replySubject">Тема</label>
+          <div class="col-sm-10"><input type="text" class="form-control" id="replySubject" name="subject" value="{{ reply.subject }}"></div>
+        </div>
+      </div>
+    </div>
+    <textarea class="form-control reply-body" name="body" rows="14" aria-label="Текст відповіді" autofocus>{{ reply.body }}</textarea>
+    <div class="d-flex flex-wrap align-items-center gap-2 text-secondary small">
+      <label class="btn btn-sm mb-0">{{ icon("paperclip", "icon-sm me-1") }}Вкладення<input type="file" name="attachments" multiple class="d-none" id="replyFiles"></label>
+      <span id="replyFilesList">до {{ max_mb }} МБ разом</span>
+      <span class="ms-auto">{{ icon("send", "icon-sm") }} через скриньку <strong>{{ mailbox.name if mailbox else "-" }}</strong>{% if mailbox and mailbox.smtp_host %} ({{ mailbox.smtp_host }}){% endif %}</span>
+    </div>
+  </div>
+</form>

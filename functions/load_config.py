@@ -28,7 +28,7 @@ SETTINGS_SCHEMA = [
    "label": "Видаляти листи з поштового сервера",
    "help": "Після того як лист збережено в базі та на диску, оригінал на IMAP сервері видаляється."},
   {"name": "imapTimeout", "type": "int", "default": "60",
-   "label": "Таймаут IMAP з'єднання (сек.)", "help": ""},
+   "label": "Таймаут IMAP / SMTP з'єднання (сек.)", "help": ""},
   {"name": "fetchToken", "type": "secret", "default": "",
    "label": "Токен для запуску збору (GET /fetch/run/)",
    "help": "Якщо задано - запит повинен містити ?token=<значення>. Порожньо = без перевірки."},
@@ -143,6 +143,8 @@ def generate_default_config(application):
   creates the tables (idempotent, safe on an already-populated database) and inserts default values."""
   with application.app_context():
     db.create_all()
+    from db.schema_upgrade import ensure_columns
+    ensure_columns()
     if db.session.get(Settings, 1) is None:
       values = {s["name"]: s["default"] for s in SETTINGS_SCHEMA}
       values["sessionKey"] = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(48))

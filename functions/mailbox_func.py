@@ -4,6 +4,39 @@ from db.database import Mailbox, FetchedMessage
 
 SECURITY_CHOICES = {"ssl": "SSL/TLS (993)", "starttls": "STARTTLS (143)", "none": "Без шифрування (143)"}
 DEFAULT_PORTS = {"ssl": 993, "starttls": 143, "none": 143}
+SMTP_SECURITY_CHOICES = {"ssl": "SSL/TLS (465)", "starttls": "STARTTLS (587)", "none": "Без шифрування (25)"}
+SMTP_DEFAULT_PORTS = {"ssl": 465, "starttls": 587, "none": 25}
+SMTP_KEYS = ("smtp_host", "smtp_port", "smtp_security", "smtp_username", "smtp_password")
+
+def smtp_configured(mb: Mailbox | None) -> bool:
+  """Replies can be sent through this mailbox."""
+  return bool(mb is not None and (mb.smtp_host or "").strip())
+
+def _clean_port(value: str, default: int) -> int:
+  value = (value or "").strip()
+  if value == "":
+    return default
+  if not value.isdigit() or not 0 < int(value) < 65536:
+    raise ValueError("порт має бути числом 1-65535")
+  return int(value)
+
+def _clean_smtp(data: dict, existing: Mailbox | None) -> dict:
+  """SMTP part of the mailbox form. Empty smtp_host = replies disabled; empty smtp_username = IMAP login/password
+  are used for SMTP too (the SMTP password is cleared then); empty smtp_password on edit = keep the current one."""
+  result = {k: str(data[k]).strip() for k in SMTP_KEYS if k in data and data[k] is not None}
+  if not result:
+    return {}
+  security = result.get("smtp_security") or (existing.smtp_security if existing and existing.smtp_security else "ssl")
+  if security not in SMTP_SECURITY_CHOICES:
+    raise ValueError(f"шифрування SMTP: одне з {', '.join(SMTP_SECURITY_CHOICES)}")
+  result["smtp_security"] = security
+  if "smtp_port" in result or "smtp_security" in data:
+    result["smtp_port"] = _clean_port(result.get("smtp_port", ""), SMTP_DEFAULT_PORTS[security])
+  if "smtp_username" in result and not result["smtp_username"]:
+    result["smtp_password"] = ""
+  elif existing is not None and not result.get("smtp_password"):
+    result.pop("smtp_password", None)
+  return result
 
 def find_mailbox(name_or_id) -> Mailbox:
   mb = None
@@ -31,6 +64,7 @@ def _clean(data: dict, existing: Mailbox | None = None) -> dict:
     elif not result["port"].isdigit() or not 0 < int(result["port"]) < 65536:
       raise ValueError("порт має бути числом 1-65535")
     result["port"] = int(result["port"])
+  result.update(_clean_smtp(data, existing))
   if "folders" in result:
     result["folders"] = ",".join(f.strip() for f in result["folders"].split(",") if f.strip()) or "INBOX"
   for key in ("name", "host", "username"):

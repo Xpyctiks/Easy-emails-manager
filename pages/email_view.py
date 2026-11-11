@@ -3,8 +3,9 @@ from urllib.parse import quote
 from flask import render_template,Blueprint,request,redirect,flash,Response,url_for,abort
 from flask_login import login_required,current_user
 from db.db import db
-from db.database import Email
+from db.database import Email, Mailbox
 from functions.domains_func import domains_summary
+from functions.mailbox_func import smtp_configured
 from functions.mail_parse_func import message_for_view, attachment_by_index
 from functions.mail_storage_func import read_eml, delete_emails
 from functions.rights_required import admin_required
@@ -32,8 +33,23 @@ def email_context(email: Email, allow_images: bool) -> dict:
   """Everything the reading pane needs. Raises FileNotFoundError / parse errors."""
   view = message_for_view(read_eml(email))
   has_remote = bool(view["html"]) and ("http://" in view["html"] or "https://" in view["html"])
+  mailbox = db.session.get(Mailbox, email.mailbox_id) if email.mailbox_id else None
+  #why the reply button is disabled ("" = replying is possible)
+  if email.is_sent:
+    reply_block = ""
+  elif mailbox is None:
+    reply_block = "Скриньку, з якої зібрано цей лист, видалено - немає SMTP для відповіді"
+  elif not smtp_configured(mailbox):
+    reply_block = f"Для скриньки «{mailbox.name}» не налаштовано SMTP (Адміністрування → Поштові скриньки)"
+  else:
+    reply_block = ""
+  replies = []
+  if email.message_id and not email.is_sent:
+    replies = (Email.query.filter(Email.in_reply_to == email.message_id, Email.is_sent.is_(True))
+               .order_by(Email.received).all())
   return {"email": email, "view": view, "allow_images": allow_images, "has_remote": has_remote,
-          "html": _sandbox_html(view["html"], allow_images) if view["html"] else ""}
+          "html": _sandbox_html(view["html"], allow_images) if view["html"] else "",
+          "mailbox": mailbox, "reply_block": reply_block, "replies": replies}
 
 def _download(data: bytes, filename: str, mimetype: str) -> Response:
   """Always a download (never rendered by the browser on our origin) - attachments are untrusted content."""

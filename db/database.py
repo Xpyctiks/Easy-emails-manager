@@ -41,6 +41,13 @@ class Mailbox(db.Model):
   password = db.Column(db.String(512), nullable=False)
   folders = db.Column(db.String(1024), nullable=False, default="INBOX") #comma-separated IMAP folders
   enabled = db.Column(db.Boolean(), nullable=False, default=True)
+  #SMTP server used to send replies to emails collected from this mailbox. Empty smtp_host = replies disabled.
+  #Empty smtp_username/smtp_password = the IMAP login/password are used.
+  smtp_host = db.Column(db.String(256), nullable=True, default="")
+  smtp_port = db.Column(db.Integer, nullable=True, default=465)
+  smtp_security = db.Column(db.String(10), nullable=True, default="ssl")   #"ssl" | "starttls" | "none"
+  smtp_username = db.Column(db.String(256), nullable=True, default="")
+  smtp_password = db.Column(db.String(512), nullable=True, default="")
   last_fetch = db.Column(db.DateTime, nullable=True)
   last_status = db.Column(db.String(1024), nullable=True, default="")
   last_count = db.Column(db.Integer, nullable=True, default=0)
@@ -66,6 +73,10 @@ class Email(db.Model):
   has_attachments = db.Column(db.Boolean(), nullable=False, default=False)
   file_path = db.Column(db.String(1024), nullable=False)                #relative to Settings.storagePath
   created = db.Column(db.DateTime, default=datetime.now)
+  #replies sent from the app: is_sent=True, stored in the same domain folder as the email they answer
+  is_sent = db.Column(db.Boolean(), nullable=True, default=False)
+  in_reply_to = db.Column(db.String(512), nullable=True, default="")  #Message-ID of the answered email
+  sent_by = db.Column(db.String(80), nullable=True, default="")       #realname of the user who sent it
 
 class FetchedMessage(db.Model):
   #ledger of every IMAP message that was already downloaded and safely stored - so it's never downloaded twice

@@ -123,12 +123,18 @@ def mailbox():
 @click.option("--security", type=click.Choice(["ssl", "starttls", "none"]), default="ssl", show_default=True)
 @click.option("--port", default="", help="Default: 993 for ssl, 143 otherwise")
 @click.option("--folders", default="INBOX", show_default=True, help="Comma-separated IMAP folders")
+@click.option("--smtp-host", help="SMTP server for replies (empty string = replies disabled)")
+@click.option("--smtp-port", help="Default: 465 ssl, 587 starttls, 25 none")
+@click.option("--smtp-security", type=click.Choice(["ssl", "starttls", "none"]))
+@click.option("--smtp-username", help="Empty = the IMAP login/password are used")
+@click.option("--smtp-password")
 @with_app_context
-def mailbox_add(name, host, username, password, security, port, folders):
-  """Add a mailbox"""
+def mailbox_add(name, host, username, password, security, port, folders, **smtp):
+  """Add a mailbox (IMAP for collecting, optionally SMTP for replies)"""
   from functions.mailbox_func import create_mailbox
   mb = create_mailbox({"name": name, "host": host, "username": username, "password": password,
-                       "security": security, "port": port, "folders": folders})
+                       "security": security, "port": port, "folders": folders,
+                       **{k: v for k, v in smtp.items() if v is not None}})
   logging.info(f"cli>Mailbox '{mb.name}' added")
   click.secho(f"Mailbox '{mb.name}' (ID {mb.id}) added successfully!", fg="green")
 
@@ -141,6 +147,11 @@ def mailbox_add(name, host, username, password, security, port, folders):
 @click.option("--security", type=click.Choice(["ssl", "starttls", "none"]))
 @click.option("--port")
 @click.option("--folders")
+@click.option("--smtp-host", help="SMTP server for replies (empty string = replies disabled)")
+@click.option("--smtp-port", help="Default: 465 ssl, 587 starttls, 25 none")
+@click.option("--smtp-security", type=click.Choice(["ssl", "starttls", "none"]))
+@click.option("--smtp-username", help="Empty = the IMAP login/password are used")
+@click.option("--smtp-password")
 @with_app_context
 def mailbox_upd(mailbox_id, **fields):
   """Change mailbox parameters (by ID or name)"""
@@ -189,6 +200,20 @@ def mailbox_test(mailbox_id):
     click.secho(f"OK: {test_mailbox(mb)}", fg="green")
   except Exception as err:
     click.secho(f"Connection error: {err}", fg="red")
+    sys.exit(1)
+
+@mailbox.command("smtptest")
+@click.argument("mailbox_id")
+@with_app_context
+def mailbox_smtptest(mailbox_id):
+  """Check SMTP connection and login (nothing is sent)"""
+  from functions.mailbox_func import find_mailbox
+  from functions.mail_send_func import test_smtp
+  mb = find_mailbox(mailbox_id)
+  try:
+    click.secho(f"OK: {test_smtp(mb)}", fg="green")
+  except Exception as err:
+    click.secho(f"SMTP error: {err}", fg="red")
     sys.exit(1)
 
 # ---------------------------------------------------------------- FETCH
@@ -284,7 +309,8 @@ def show_mailboxes():
   for m in boxes:
     last = f"{m.last_fetch:%d.%m.%Y %H:%M}" if m.last_fetch else "never"
     click.echo(f"ID: {m.id}, Name: {m.name}, {m.username}@{m.host}:{m.port} ({m.security}), Folders: {m.folders}, "
-               f"Enabled: {m.enabled}, Last fetch: {last} - {m.last_status or ''}")
+               f"Enabled: {m.enabled}, SMTP: {f'{m.smtp_host}:{m.smtp_port} ({m.smtp_security})' if m.smtp_host else 'not set'}, "
+               f"Last fetch: {last} - {m.last_status or ''}")
 
 @show.command("domains")
 @with_app_context

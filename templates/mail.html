@@ -53,7 +53,7 @@
 
   {#- ---------------------------------------------------------------- right: the email -#}
   <section class="mail-pane mail-read" id="readPane" aria-label="Лист">
-    {% include "_read_pane.html" %}
+    {% if reply %}{% include "_reply_form.html" %}{% else %}{% include "_read_pane.html" %}{% endif %}
   </section>
 </div>
 {% endblock %}

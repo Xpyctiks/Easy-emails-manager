@@ -5,8 +5,9 @@ from db.db import db
 from db.database import User, Mailbox, Email
 from sqlalchemy import func
 from functions.load_config import SETTINGS_SCHEMA, get_settings, save_settings, grouped_settings
-from functions.mailbox_func import SECURITY_CHOICES, create_mailbox, update_mailbox, delete_mailbox, set_enabled, find_mailbox
+from functions.mailbox_func import SECURITY_CHOICES, SMTP_SECURITY_CHOICES, create_mailbox, update_mailbox, delete_mailbox, set_enabled, find_mailbox
 from functions.mail_fetch_func import test_mailbox, is_running
+from functions.mail_send_func import test_smtp
 from functions.rights_required import admin_required, ROLE_NAMES, ADMIN_RIGHTS
 from functions.send_to_telegram import send_to_telegram
 from functions.users_func import create_user, delete_user, set_role, set_password, find_user
@@ -49,7 +50,10 @@ def _handler_users(form) -> str:
   raise ValueError("невідома дія")
 
 def _mailbox_form(form, prefix: str) -> dict:
-  return {key: form.get(f"{prefix}{key}", "") for key in ("name", "host", "port", "security", "username", "password", "folders")}
+  keys = ("name", "host", "port", "security", "username", "password", "folders",
+          "smtp_host", "smtp_port", "smtp_security", "smtp_username", "smtp_password")
+  #a field missing from the form (not just empty) is left unchanged
+  return {key: form.get(f"{prefix}{key}") for key in keys if f"{prefix}{key}" in form}
 
 def _handler_mailboxes(form) -> str:
   if "buttonAddMailbox" in form:
@@ -76,12 +80,18 @@ def _handler_mailboxes(form) -> str:
       return f"✅ Скринька \"{mb.name}\": підключення успішне. {test_mailbox(mb)}"
     except Exception as err:
       raise ValueError(f"скринька \"{mb.name}\": помилка підключення: {err}")
+  if "buttonTestSmtp" in form:
+    mb = find_mailbox(form.get("buttonTestSmtp"))
+    try:
+      return f"✅ Скринька \"{mb.name}\": SMTP підключення та авторизація успішні. {test_smtp(mb)}"
+    except Exception as err:
+      raise ValueError(f"скринька \"{mb.name}\": помилка SMTP: {err}")
   raise ValueError("невідома дія")
 
 HANDLERS = [
   (("buttonSaveSettings",), _handler_settings, "/admin_panel/settings/"),
   (("buttonAddUser", "buttonDeleteUser", "buttonSetRole", "buttonSetPassword"), _handler_users, "/admin_panel/users/"),
-  (("buttonAddMailbox", "buttonEditMailbox", "buttonDeleteMailbox", "buttonToggleMailbox", "buttonTestMailbox"), _handler_mailboxes, "/admin_panel/mailboxes/"),
+  (("buttonAddMailbox", "buttonEditMailbox", "buttonDeleteMailbox", "buttonToggleMailbox", "buttonTestMailbox", "buttonTestSmtp"), _handler_mailboxes, "/admin_panel/mailboxes/"),
 ]
 
 @admin_panel_bp.route("/admin_panel/", methods=['POST'])
@@ -125,4 +135,4 @@ def admin_panel_mailboxes():
   mailboxes = Mailbox.query.order_by(Mailbox.id).all()
   counts = dict(db.session.query(Email.mailbox_id, func.count(Email.id)).group_by(Email.mailbox_id).all())
   return render_template("template-admin_panel.html", section="mailboxes", mailboxes=mailboxes, counts=counts,
-                         security_choices=SECURITY_CHOICES, fetch_running=is_running(), settings=get_settings())
+                         security_choices=SECURITY_CHOICES, smtp_security_choices=SMTP_SECURITY_CHOICES, fetch_running=is_running(), settings=get_settings())

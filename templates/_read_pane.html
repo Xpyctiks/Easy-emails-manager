@@ -8,6 +8,16 @@
   <button type="button" class="btn btn-ghost-secondary btn-icon d-lg-none" data-view-go="list" aria-label="До списку листів">{{ icon("arrow-left") }}</button>
   <h3 class="pane-title flex-fill min-w-0 text-truncate" title="{{ view.subject or email.subject }}">{{ view.subject or email.subject or "(без теми)" }}</h3>
   <div class="btn-list flex-nowrap">
+    {% if not email.is_sent %}
+      {% if reply_block %}
+      <span class="d-inline-block" tabindex="0" data-bs-toggle="tooltip" title="{{ reply_block }}">
+        <button type="button" class="btn btn-primary" disabled>{{ icon("corner-up-left", "me-1") }}<span class="d-none d-xl-inline">Відповісти</span></button>
+      </span>
+      {% else %}
+      <button type="button" class="btn btn-primary" hx-get="{{ url_for('main.reply.reply_form', email_id=email.id, **clean_params(params)) }}" hx-target="#readPane"
+              data-bs-toggle="tooltip" title="Відповісти (клавіша R)" aria-label="Відповісти" id="replyBtn">{{ icon("corner-up-left", "me-1") }}<span class="d-none d-xl-inline">Відповісти</span></button>
+      {% endif %}
+    {% endif %}
     <a href="{{ url_for('main.email_view.download_raw', email_id=email.id) }}" class="btn btn-ghost-secondary btn-icon" data-bs-toggle="tooltip" title="Завантажити оригінал (.eml)" aria-label="Завантажити .eml">{{ icon("download") }}</a>
     {% if admin %}
     <button type="button" class="btn btn-ghost-danger btn-icon" hx-post="{{ url_for('main.email_view.remove_email', email_id=email.id) }}" hx-include="#listControls"
@@ -29,6 +39,26 @@
       <div>{{ human_size(email.size) }}</div>
     </div>
   </div>
+
+  {% if email.is_sent %}
+  <div class="alert alert-info mb-0 d-flex align-items-center gap-2">
+    {{ icon("send") }}<div>Цей лист надіслано з програми{% if email.sent_by %} користувачем <strong>{{ email.sent_by }}</strong>{% endif %} через скриньку {{ email.mailbox_name }}.</div>
+  </div>
+  {% endif %}
+
+  {% if replies %}
+  <div class="card replies-card">
+    <div class="card-body py-2">
+      {% for r in replies %}
+      <div class="d-flex align-items-center gap-2 small{% if not loop.last %} border-bottom pb-2 mb-2{% endif %}">
+        <span class="text-green">{{ icon("corner-up-left", "icon-sm") }}</span>
+        <span>Відповідь надіслано <strong>{{ r.received.strftime('%d.%m.%Y %H:%M') }}</strong>{% if r.sent_by %} ({{ r.sent_by }}){% endif %} від {{ r.sender }} → {{ r.recipients }}</span>
+        <a class="ms-auto" href="{{ url_for('main.email_view.show_email', email_id=r.id, **clean_params(params)) }}" hx-get="{{ url_for('main.email_view.show_email', email_id=r.id, **clean_params(params)) }}" hx-target="#readPane">відкрити</a>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
 
   {% if view.attachments %}
   <div class="read-attachments">

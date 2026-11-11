@@ -139,6 +139,15 @@ body.is-loading .app-progress { opacity: 1; animation: app-progress 1s linear in
   border-radius: 0 0 var(--tblr-border-radius-lg) var(--tblr-border-radius-lg);
 }
 
+/* reply form */
+.reply-form { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.reply-fields .col-form-label { padding-top: 0; padding-bottom: 0; }
+.reply-body { flex: 1; min-height: 16rem; font-size: .92rem; line-height: 1.5; resize: vertical; }
+.reply-form .send-spinner { display: none; }
+.reply-form.htmx-request .send-spinner { display: inline-block; }   /* htmx marks the form while sending */
+.reply-form.htmx-request .send-icon { display: none; }
+.replies-card { border-left: 3px solid var(--tblr-green); }
+
 /* medium screens: narrower side panes */
 @media (max-width: 1399.98px) {
   .mail-app { grid-template-columns: 240px minmax(300px, 360px) minmax(0, 1fr); }

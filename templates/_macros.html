@@ -38,6 +38,7 @@
   {{ avatar(e.sender_name, e.sender) }}
   <div class="flex-fill min-w-0">
     <div class="d-flex align-items-baseline gap-2">
+      {% if e.is_sent %}<span class="badge bg-green-lt flex-shrink-0" title="Відповідь, надіслана з програми">{{ icon("send", "icon-sm me-1") }}Надіслано</span>{% endif %}
       <span class="email-sender text-truncate" title="{{ e.sender }}">{{ e.sender_name or e.sender or "(невідомий відправник)" }}</span>
       <span class="email-date ms-auto" title="{{ e.received.strftime('%d.%m.%Y %H:%M:%S') }}">{{ e.received|short_date }}</span>
     </div>

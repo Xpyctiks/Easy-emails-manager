@@ -78,11 +78,20 @@ function moveSelection(step) {
 }
 
 document.addEventListener("keydown", e => {
+  // Ctrl+Enter in the reply form sends it
+  if (e.key === "Enter" && (e.ctrlKey || e.metaKey) && e.target.closest(".reply-form")) {
+    e.preventDefault();
+    e.target.closest(".reply-form").requestSubmit();
+    return;
+  }
   if (e.target.closest("input, textarea, select, [contenteditable]") || e.ctrlKey || e.metaKey || e.altKey) {
     if (e.key === "Escape" && e.target.id === "domainFilter") { e.target.value = ""; applyDomainFilter(); }
     return;
   }
   if (document.querySelector(".modal.show")) return;
+  // while a reply is being written, don't let the arrow keys replace it with another email
+  if (document.querySelector("#readPane .reply-form")) return;
+  if (e.key === "r" || e.key === "к") { const btn = document.getElementById("replyBtn"); if (btn) { e.preventDefault(); btn.click(); } return; }
   if (e.key === "ArrowDown" || e.key === "j") { e.preventDefault(); moveSelection(1); }
   else if (e.key === "ArrowUp" || e.key === "k") { e.preventDefault(); moveSelection(-1); }
   else if (e.key === "Enter" && e.target.classList.contains("email-row")) { e.target.click(); }
@@ -116,6 +125,15 @@ document.addEventListener("click", e => {
 });
 
 document.addEventListener("change", e => {
+  if (e.target.id === "replyFiles") {
+    const list = document.getElementById("replyFilesList");
+    const files = Array.from(e.target.files || []);
+    if (list && files.length) {
+      const total = files.reduce((s, f) => s + f.size, 0);
+      list.textContent = files.map(f => f.name).join(", ") + ` (${(total / 1048576).toFixed(1)} МБ)`;
+    }
+    return;
+  }
   if (e.target.id === "checkAll") {
     document.querySelectorAll("#emailList .row-check").forEach(c => { c.checked = e.target.checked; });
     updateBulkBar();

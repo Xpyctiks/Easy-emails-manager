@@ -12,7 +12,7 @@ if not os.path.exists(pathlib.Path(__file__).resolve().parent / ".env"):
   exit(1)
 load_dotenv(pathlib.Path(__file__).resolve().parent / ".env")
 application = Flask(__name__)
-application.config["VERSION"] = "1.0.0"
+application.config["VERSION"] = "1.0.2"
 application.config["SQLALCHEMY_DATABASE_URI"] = build_mysql_uri()
 application.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 application.config["SQLALCHEMY_ENGINE_OPTIONS"] = (
@@ -22,6 +22,8 @@ application.config['PERMANENT_SESSION_LIFETIME'] = 86400
 application.config['SESSION_COOKIE_SECURE'] = False
 application.config['SESSION_COOKIE_HTTPONLY'] = True
 application.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+#largest accepted request (reply attachments are limited to 20 MB in functions/mail_send_func.py)
+application.config['MAX_CONTENT_LENGTH'] = 25 * 1024 * 1024
 from db.db import db
 from db.database import User
 db.init_app(application)
