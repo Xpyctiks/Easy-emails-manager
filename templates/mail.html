@@ -3,14 +3,15 @@
 {% block title %}{% if email %}{{ email.subject or "(без теми)" }} · {% elif domain %}{{ domain }} · {% endif %}Easy Emails Manager{% endblock %}
 {% block body_class %}mail-body{% endblock %}
 {% block content %}
-<div class="mail-app" id="mailApp" data-view="{{ pane_view }}">
+<div class="mail-app" id="mailApp" data-view="{{ pane_view }}" data-refresh="{{ auto_refresh }}" data-dsig="{{ domains_sig }}"
+     data-refresh-url="{{ url_for('main.refresh.refresh') }}">
 
   {#- ---------------------------------------------------------------- left: virtual folders (domains) -#}
   <aside class="mail-pane mail-domains" aria-label="Домени">
     <div class="pane-header">
       <div class="flex-fill">
         <h3 class="pane-title">Домени</h3>
-        <div class="text-secondary small">{{ domains|length }} папок · {{ total_emails }} листів</div>
+        <div class="text-secondary small" id="domainsSummary">{% include "_domains_summary.html" %}</div>
       </div>
     </div>
     <div class="pane-toolbar">
@@ -28,17 +29,11 @@
       </select>
     </div>
     <div class="pane-body" id="domainList">
-      {% for d in domains %}
-      {{ domain_item(d, d.domain == domain) }}
-      {% else %}
-      {% call empty_state("inbox-off", "Листів ще немає") %}
-        <p class="text-secondary small mb-0">Пошта збирається запитом <code>GET /fetch/run/</code>{% if admin %} або кнопкою «Зібрати пошту» вгорі{% endif %}.</p>
-      {% endcall %}
-      {% endfor %}
-      <div class="text-center text-secondary small p-3 d-none" id="noDomainMatches">Нічого не знайдено</div>
+      {% include "_domain_list.html" %}
     </div>
     <div class="pane-footer text-secondary small">
-      {{ icon("clock", "icon-sm") }} Останній збір: {{ last_fetch.strftime('%d.%m.%Y %H:%M') if last_fetch else "ще не було" }}
+      {{ icon("clock", "icon-sm") }} Останній збір: <span id="lastFetch">{{ last_fetch.strftime('%d.%m.%Y %H:%M') if last_fetch else "ще не було" }}</span>
+      {% if auto_refresh %}<span class="ms-auto" data-bs-toggle="tooltip" title="Списки оновлюються автоматично кожні {{ auto_refresh }} с">{{ icon("refresh", "icon-sm") }} {{ auto_refresh }} с</span>{% endif %}
     </div>
   </aside>
 

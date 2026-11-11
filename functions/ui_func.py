@@ -5,13 +5,14 @@ by htmx - it requests a pane fragment and swaps it in place, the server tells th
 (HX-Push-Url), so every state has a normal URL that renders the full page on reload."""
 import hashlib
 import json
+import math
 import zlib
 from datetime import datetime, timedelta
 from flask import request, make_response, render_template
 from sqlalchemy import func
 from db.db import db
 from db.database import Mailbox
-from functions.domains_func import domains_summary, domain_emails, SORT_COLUMNS
+from functions.domains_func import domains_summary, domains_signature, domain_emails, SORT_COLUMNS
 
 LIST_PAGE_SIZE = 50
 SORT_LABELS = {"received": "Дата отримання", "sender": "Відправник", "recipients": "Отримувач",
@@ -59,6 +60,21 @@ def clean_params(params: dict) -> dict:
 def list_page(domain: str, params: dict, page: int = 1) -> dict:
   return domain_emails(domain, params["sort"], params["order"], params["q"], page, LIST_PAGE_SIZE)
 
+def list_pages(domain: str, params: dict, pages: int) -> dict:
+  """Pages 1..pages in one listing (one query) - what the browser has already loaded by infinite scroll.
+  The loader at the end then asks for page `pages + 1` as usual."""
+  listing = domain_emails(domain, params["sort"], params["order"], params["q"], 1, LIST_PAGE_SIZE * pages)
+  listing["total_pages"] = max(1, math.ceil(listing["total"] / LIST_PAGE_SIZE))
+  listing["page"] = min(pages, listing["total_pages"])
+  return listing
+
+def auto_refresh_seconds() -> int:
+  from functions.load_config import get_settings
+  try:
+    return max(0, int(get_settings().get("autoRefresh") or 0))
+  except ValueError:
+    return 0
+
 def last_fetch():
   return db.session.query(func.max(Mailbox.last_fetch)).scalar()
 
@@ -68,7 +84,8 @@ def render_mail_page(domain: str | None = None, params: dict | None = None, emai
   domains = domains_summary()
   ctx = {"domains": domains, "total_emails": sum(d["count"] for d in domains), "last_fetch": last_fetch(),
          "domain": domain, "params": params, "sort_labels": SORT_LABELS, "email": email,
-         "pane_view": "read" if email else ("list" if domain else "domains")}
+         "pane_view": "read" if email else ("list" if domain else "domains"),
+         "auto_refresh": auto_refresh_seconds(), "domains_sig": domains_signature(domains)}
   if domain:
     ctx["listing"] = list_page(domain, params)
     ctx["domain_count"] = next((d["count"] for d in domains if d["domain"] == domain), 0)

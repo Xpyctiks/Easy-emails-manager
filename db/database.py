@@ -29,6 +29,7 @@ class Settings(db.Model):
   telegramChat = db.Column(db.String(32), nullable=True, default="")
   telegramToken = db.Column(db.String(128), nullable=True, default="")
   serverHostname = db.Column(db.String(256), nullable=True, default="")
+  autoRefresh = db.Column(db.String(10), nullable=True, default="30")
 
 class Mailbox(db.Model):
   #IMAP account the mail is collected from

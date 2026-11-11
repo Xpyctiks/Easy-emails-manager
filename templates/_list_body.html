@@ -9,5 +9,6 @@
 {% else %}
   {{ empty_state("inbox-off", "У цій папці немає листів") }}
 {% endif %}
+<template class="list-sig" data-sig="{{ listing.sig }}"></template>
 {% if count_oob %}<span id="listCount" hx-swap-oob="true">{{ listing.total }}</span>{% endif %}{% if domain_info %}{{ domain_item(domain_info, True, True) }}{% endif %}
 {% if clear_read %}<div id="readPane" hx-swap-oob="innerHTML">{% include "_read_empty.html" %}</div>{% endif %}

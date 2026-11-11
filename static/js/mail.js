@@ -181,3 +181,104 @@ document.addEventListener("DOMContentLoaded", () => {
   document.querySelector(".domain-item.active")?.scrollIntoView({ block: "center" });
   document.querySelector(".email-row.active")?.scrollIntoView({ block: "center" });
 });
+
+// ---------------------------------------------------------------- auto-refresh of the domains and the emails list
+// Every N seconds (setting autoRefresh, 0 = off) asks /refresh/ whether the folders or the open list changed.
+// Only changed parts come back; scroll position, checked boxes and the open email are kept. Paused while the tab
+// is hidden, while another htmx request is running or a dialog is open.
+const autoRefresh = { timer: null, last: 0, busy: false };
+
+function refreshInterval() {
+  return Math.max(0, Number(app()?.dataset.refresh || 0)) * 1000;
+}
+
+function scheduleRefresh() {
+  clearTimeout(autoRefresh.timer);
+  const ms = refreshInterval();
+  if (ms) autoRefresh.timer = setTimeout(runRefresh, ms);
+}
+
+function swapKeepingScroll(el, html) {
+  const top = el.scrollTop;
+  el.innerHTML = html;
+  htmx.process(el);
+  el.scrollTop = top;
+}
+
+function applyDomains(data) {
+  const list = document.getElementById("domainList");
+  if (!list || data.domains_html === undefined) return;
+  swapKeepingScroll(list, data.domains_html);
+  applyDomainSort();
+  applyDomainFilter();
+  const summary = document.getElementById("domainsSummary");
+  if (summary && data.summary_html !== undefined) summary.innerHTML = data.summary_html;
+}
+
+function applyList(data) {
+  const list = document.getElementById("emailList");
+  if (!list || data.list_html === undefined) return;
+  const oldIds = new Set(Array.from(list.querySelectorAll(".email-row")).map(r => r.id));
+  const checked = new Set(Array.from(list.querySelectorAll(".row-check:checked")).map(c => c.value));
+  const activeId = list.querySelector(".email-row.active")?.id;
+  const focusedId = document.activeElement?.closest?.("#emailList .email-row")?.id;
+  swapKeepingScroll(list, data.list_html);
+  list.querySelectorAll(".row-check").forEach(c => { if (checked.has(c.value)) c.checked = true; });
+  if (activeId) document.getElementById(activeId)?.classList.add("active");
+  if (focusedId) document.getElementById(focusedId)?.focus({ preventScroll: true });
+  if (oldIds.size) {
+    list.querySelectorAll(".email-row").forEach(r => { if (!oldIds.has(r.id)) r.classList.add("row-new"); });
+  }
+  const count = document.getElementById("listCount");
+  if (count && data.count !== undefined) count.textContent = data.count;
+  updateBulkBar();
+}
+
+async function runRefresh() {
+  const root = app();
+  if (!root || autoRefresh.busy) return;
+  if (document.hidden || document.querySelector(".htmx-request, .modal.show")) { scheduleRefresh(); return; }
+  autoRefresh.busy = true;
+  try {
+    const query = new URLSearchParams({ dsig: root.dataset.dsig || "" });
+    const controls = document.getElementById("listControls");
+    const list = document.getElementById("emailList");
+    if (controls && list) {
+      new FormData(controls).forEach((v, k) => query.set(k, v));
+      query.set("domain", controls.dataset.domain);
+      query.set("lsig", list.querySelector(".list-sig")?.dataset.sig || "");
+      const rows = list.querySelectorAll(".email-row").length;
+      query.set("pages", String(Math.max(1, Math.ceil(rows / 50))));
+    }
+    const sentFor = controls?.dataset.domain;
+    const resp = await fetch(root.dataset.refreshUrl + "?" + query, { headers: { "HX-Request": "true" }, cache: "no-store" });
+    const redirect = resp.headers.get("HX-Redirect");
+    if (redirect) { window.location.href = redirect; return; }
+    if (!resp.ok) return;
+    const data = await resp.json();
+    // the user may have opened another domain while the request was running
+    if (document.querySelector(".htmx-request")) return;
+    root.dataset.dsig = data.dsig;
+    applyDomains(data);
+    if (document.getElementById("listControls")?.dataset.domain === sentFor) applyList(data);
+    const fetched = document.getElementById("lastFetch");
+    if (fetched && data.last_fetch) fetched.textContent = data.last_fetch;
+    if (typeof data.interval === "number") root.dataset.refresh = data.interval;
+  } catch (e) {
+    // network hiccup - just try again next time
+  } finally {
+    autoRefresh.busy = false;
+    autoRefresh.last = Date.now();
+    scheduleRefresh();
+  }
+}
+
+document.addEventListener("visibilitychange", () => {
+  const ms = refreshInterval();
+  if (!document.hidden && ms && Date.now() - autoRefresh.last >= ms) runRefresh();
+});
+
+document.addEventListener("DOMContentLoaded", () => {
+  autoRefresh.last = Date.now();
+  scheduleRefresh();
+});

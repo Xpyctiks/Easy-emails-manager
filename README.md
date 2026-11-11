@@ -10,7 +10,7 @@ Version: **1.0.0**
 
 - **Collection on a GET request.** `GET /fetch/run/` returns `200` right away and starts collecting in the background. You can call it from cron, monitoring or a webhook.
 - **Sorting by domain.** Messages are sorted by the sender's domain (`From` → `Sender` → `Return-Path`) or the recipient's domain (a configurable header list, default `To,Cc,X-Original-To,Delivered-To`). If a message has several domains, it goes either to the first one or into every folder as a copy. You can list domains to ignore (for example the collector mailbox's own domain in a catch-all forwarding setup).
-- **Three-pane mail interface.** On the left are the virtual folders, one per domain that has at least one message, with the message count, the date of the last message and the total size; you can filter and sort them. In the middle are the messages of the selected domain: sort by received date, sender, recipient, subject, size or mailbox (on the server side), search, and scroll to load more. On the right is the open message. Panes are updated without reloading the page (htmx), every state has its own URL, and the ↑/↓ (J/K) keys move through the messages. On a phone the panes are shown one at a time. Light and dark themes.
+- **Three-pane mail interface.** On the left are the virtual folders, one per domain that has at least one message, with the message count, the date of the last message and the total size; you can filter and sort them. In the middle are the messages of the selected domain: sort by received date, sender, recipient, subject, size or mailbox (on the server side), search, and scroll to load more. On the right is the open message. Panes are updated without reloading the page (htmx), every state has its own URL, and the ↑/↓ (J/K) keys move through the messages. On a phone the panes are shown one at a time. Light and dark themes. The folders and the open list refresh themselves every 30 seconds (setting `autoRefresh`): new messages appear highlighted, while the scroll position, checked boxes and the open message are kept.
 - **Message view.** The HTML body is shown in a sandboxed iframe: scripts are disabled and remote images are blocked until you choose to show them. You can also see the plain text and the full headers, download attachments, and download the original `.eml`.
 - **Replies.** Any user (admin or user) can answer a message right from the reading pane (button or the R key). The reply's sender is, by default, the address the message was sent **to** (for example `info@site-a.com`), and it goes out through the SMTP server configured for the mailbox the message was collected from. The reply gets correct `In-Reply-To`/`References` headers, can carry attachments, and a copy is stored in the same domain folder, marked "Надіслано". The answered message lists the replies sent to it.
 - **Optional deletion on the server.** A message is removed from the IMAP server only *after* its file is written and its database rows are committed.
@@ -151,6 +151,7 @@ All settings are stored in the `settings` table (row `id=1`). You can edit them 
 | `sessionKey` | random | Flask session key (applied after a restart) |
 | `telegramChat`, `telegramToken` | *(empty)* | Error notifications |
 | `serverHostname` | *(empty)* | Shown in page titles and in notifications |
+| `autoRefresh` | `30` | How often an open mail page checks for new messages, in seconds; `0` turns it off (takes effect after the page is reloaded) |
 
 To add a setting, add a column to `Settings` (`db/database.py`) and an entry to `SETTINGS_SCHEMA` (`functions/load_config.py`). The admin form and the CLI pick it up automatically.
 
@@ -190,7 +191,8 @@ version
 | `GET /` | user | Mail page, no domain selected |
 | `GET /domain/<domain>/` | user | Mail page with a domain open (`sort`, `order`, `q`); for htmx: the list pane, `part=list` (list body), `part=rows&page=N` (next rows) |
 | `GET /email/<id>/` | user | Mail page with a message open (`?images=1` shows remote images); for htmx: the reading pane |
-| `GET /email/<id>/reply/`, `POST /email/<id>/reply/` | admin | Reply form / send the reply |
+| `GET /email/<id>/reply/`, `POST /email/<id>/reply/` | user | Reply form / send the reply |
+| `GET /refresh/` | user | Auto-refresh of the mail page (JSON): HTML of the folders and of the list, only for the parts that changed |
 | `GET /email/<id>/raw/`, `/email/<id>/attachment/<n>/` | user | Downloads |
 | `POST /email/<id>/delete/`, `/domain/<domain>/delete/`, `/domain/<domain>/delete_emails/` | admin | Deletion |
 | `GET /fetch/run/` | token | Start collection (cron) |

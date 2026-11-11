@@ -6,6 +6,7 @@ from .fetch import fetch_bp
 from .login import login_bp
 from .logout import logout_bp
 from .logs import logs_bp
+from .refresh import refresh_bp
 from .reply import reply_bp
 from .robots import robots_bp
 from .root import root_bp
@@ -18,6 +19,7 @@ blueprint.register_blueprint(fetch_bp)
 blueprint.register_blueprint(login_bp)
 blueprint.register_blueprint(logout_bp)
 blueprint.register_blueprint(logs_bp)
+blueprint.register_blueprint(refresh_bp)
 blueprint.register_blueprint(reply_bp)
 blueprint.register_blueprint(robots_bp)
 blueprint.register_blueprint(root_bp)

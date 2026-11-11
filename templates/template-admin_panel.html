@@ -65,7 +65,7 @@
             <button class="btn btn-icon" type="button" data-toggle-password="set-{{ s.name }}" title="Показати / сховати" aria-label="Показати / сховати">{{ icon("eye") }}</button>
           </div>
           {% else %}
-          <input type="{{ 'number' if s.type == 'int' else 'text' }}" class="form-control{% if s.type == 'path' %} font-monospace{% endif %}" id="set-{{ s.name }}" name="{{ s.name }}" value="{{ settings[s.name] }}"{% if s.type == 'int' %} min="1"{% endif %}>
+          <input type="{{ 'number' if s.type == 'int' else 'text' }}" class="form-control{% if s.type == 'path' %} font-monospace{% endif %}" id="set-{{ s.name }}" name="{{ s.name }}" value="{{ settings[s.name] }}"{% if s.type == 'int' %} min="{{ s.get('min', 1) }}"{% endif %}>
           {% endif %}
           {% if s.help %}<small class="form-hint mt-1">{{ s.help }}</small>{% endif %}
         </div>

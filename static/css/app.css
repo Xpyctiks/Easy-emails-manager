@@ -165,3 +165,8 @@ body.is-loading .app-progress { opacity: 1; animation: app-progress 1s linear in
 /* ---------------------------------------------------------------- admin panel */
 .admin-nav .list-group-item.active { font-weight: 600; }
 .card-sticky-footer { position: sticky; bottom: 1rem; z-index: 10; box-shadow: var(--tblr-box-shadow-dropdown); }
+
+/* rows that appeared after an auto-refresh */
+@keyframes row-new-flash { from { background: var(--tblr-green-lt); } to { background: transparent; } }
+.email-row.row-new { animation: row-new-flash 4s ease-out; }
+.pane-footer { display: flex; align-items: center; gap: .25rem; }

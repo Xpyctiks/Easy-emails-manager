@@ -38,6 +38,9 @@ SETTINGS_SCHEMA = [
    "label": "Ключ сесій", "help": "Зміна вступає в силу після перезапуску і розлогінює всіх користувачів."},
   {"name": "telegramChat", "type": "text", "default": "", "label": "Telegram ChatID", "help": "Для сповіщень про помилки."},
   {"name": "telegramToken", "type": "secret", "default": "", "label": "Telegram токен бота", "help": ""},
+  {"name": "autoRefresh", "type": "int", "min": 0, "default": "30",
+   "label": "Автооновлення списків доменів і листів (сек.)",
+   "help": "Як часто відкрита сторінка перевіряє нові листи. 0 = вимкнено."},
   {"name": "serverHostname", "type": "text", "default": "", "label": "Назва сервера",
    "help": "Показується в заголовку сторінок і в сповіщеннях Telegram."},
 ]
@@ -46,7 +49,7 @@ SETTINGS_BY_NAME = {s["name"]: s for s in SETTINGS_SCHEMA}
 SETTINGS_GROUPS = [
   ("Зберігання та сортування", "folders", ["storagePath", "sortBy", "recipientHeaders", "multiDomainMode", "ignoreDomains"]),
   ("Збір пошти", "mailbox", ["deleteFromServer", "imapTimeout", "fetchToken"]),
-  ("Система та сповіщення", "server", ["serverHostname", "logFile", "sessionKey", "telegramChat", "telegramToken"]),
+  ("Система та сповіщення", "server", ["serverHostname", "autoRefresh", "logFile", "sessionKey", "telegramChat", "telegramToken"]),
 ]
 
 def grouped_settings() -> list:
@@ -73,9 +76,10 @@ def validate_setting(name: str, value: str) -> str:
       return "false"
     raise ValueError(f"'{name}' приймає true/false (on/off)")
   if t == "int":
-    if not value.isdigit() or int(value) <= 0:
-      raise ValueError(f"'{name}' має бути цілим числом більше 0")
-    return value
+    minimum = schema.get("min", 1)
+    if not value.isdigit() or int(value) < minimum:
+      raise ValueError(f"'{name}' має бути цілим числом не менше {minimum}")
+    return str(int(value))
   if t == "choice":
     if value not in schema["choices"]:
       raise ValueError(f"'{name}' приймає одне з: {', '.join(schema['choices'])}")

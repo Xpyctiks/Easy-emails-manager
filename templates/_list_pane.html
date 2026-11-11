@@ -20,7 +20,7 @@
   </div>
   {% endif %}
 </div>
-<form id="listControls" class="pane-toolbar" hx-get="{{ list_url }}" hx-trigger="submit" hx-target="#emailList" hx-include="#listControls" hx-vals='{"part": "list"}' role="search">
+<form id="listControls" class="pane-toolbar" data-domain="{{ domain }}" hx-get="{{ list_url }}" hx-trigger="submit" hx-target="#emailList" hx-include="#listControls" hx-vals='{"part": "list"}' role="search">
   <div class="input-icon flex-fill">
     <span class="input-icon-addon">{{ icon("search") }}</span>
     <input type="search" name="q" value="{{ params.q }}" class="form-control form-control-sm" placeholder="Тема, відправник, отримувач…" aria-label="Пошук листів"

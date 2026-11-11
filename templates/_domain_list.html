@@ -1,0 +1,10 @@
+{#- Content of the left pane (#domainList): rendered inside mail.html and by the auto-refresh (/refresh/). -#}
+{% from "_macros.html" import domain_item, empty_state with context %}
+{% for d in domains %}
+{{ domain_item(d, d.domain == domain) }}
+{% else %}
+{% call empty_state("inbox-off", "Листів ще немає") %}
+  <p class="text-secondary small mb-0">Пошта збирається запитом <code>GET /fetch/run/</code>{% if admin %} або кнопкою «Зібрати пошту» вгорі{% endif %}.</p>
+{% endcall %}
+{% endfor %}
+<div class="text-center text-secondary small p-3 d-none" id="noDomainMatches">Нічого не знайдено</div>
