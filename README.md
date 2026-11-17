@@ -129,7 +129,7 @@ The reply form is prefilled:
 - **Кому (To):** `Reply-To` of the message, otherwise its `From`.
 - **Тема:** `Re: <subject>`. The body contains the quoted original text.
 
-The SMTP envelope sender (`MAIL FROM`) is the SMTP login when it is an email address, otherwise the reply's From. Most providers only accept a From that the account owns, so the SMTP account must be allowed to send as those addresses (aliases, a catch-all domain on your own mail server, or a relay).
+The SMTP envelope sender (`MAIL FROM`) is always the reply's From address, so the recipient sees that address in `Return-Path` (the receiving server writes `Return-Path` from `MAIL FROM`), and bounces go back to it. The SMTP account must therefore be allowed to send as those addresses (aliases, a catch-all domain on your own mail server, or a relay); otherwise the server refuses the sender and the form shows that error. Some providers (Gmail, for example) silently replace an envelope sender the account does not own with the account address.
 
 Both roles (admin and user) can reply; the stored copy records who sent it. You cannot reply to a stored reply (a message marked "Надіслано"). Attachments are limited to 20 MB in total. Ctrl+Enter in the reply text sends it.
 

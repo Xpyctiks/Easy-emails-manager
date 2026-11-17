@@ -163,11 +163,15 @@ def send_reply(original: Email, form: dict, attachments: list, sent_by: str) -> 
   if sum(len(d) for _, d in attachments) > MAX_ATTACHMENTS_SIZE:
     raise ValueError(f"вкладення разом більші за {MAX_ATTACHMENTS_SIZE // 1024 // 1024} МБ")
   msg = build_reply(original, form.get("from_name") or "", from_addr, to, cc, form.get("subject") or "", body, attachments)
-  login = smtp_credentials(mb)[0]
-  #authenticated servers usually require the envelope sender to be the account itself; From stays the reply address
-  envelope_from = login if "@" in (login or "") else from_addr
-  with smtp_connect(mb) as smtp:
-    refused = smtp.send_message(msg, from_addr=envelope_from, to_addrs=[a for _, a in to + cc])
+  #envelope sender (MAIL FROM) = the reply's From address: the receiving server writes it into Return-Path,
+  #so bounces and Return-Path point to the address the reply is sent from, not to the SMTP login
+  try:
+    with smtp_connect(mb) as smtp:
+      refused = smtp.send_message(msg, from_addr=from_addr, to_addrs=[a for _, a in to + cc])
+  except smtplib.SMTPSenderRefused as err:
+    detail = err.smtp_error.decode(errors="replace") if isinstance(err.smtp_error, bytes) else str(err.smtp_error)
+    raise ValueError(f"SMTP сервер скриньки «{mb.name}» не дозволяє відправляти від адреси {from_addr} "
+                     f"(логін {smtp_credentials(mb)[0]}): {err.smtp_code} {detail}") from err
   logging.info(f"send_reply(): reply to email id={original.id} sent by {sent_by} from {from_addr} to "
                f"{', '.join(a for _, a in to + cc)} via {mb.name} ({mb.smtp_host}){f', refused: {refused}' if refused else ''}")
   raw = msg.as_bytes()
