@@ -123,7 +123,10 @@ def reply_defaults(email: Email, view: dict) -> dict:
 
 def build_reply(original: Email, from_name: str, from_addr: str, to: list, cc: list, subject: str, body: str,
                 attachments: list) -> EmailMessage:
-  """attachments: [(filename, bytes)]"""
+  """attachments: [(filename, bytes)]
+  The reply is a brand-new message: only its own headers (From, To, Cc, Subject, Date, Message-ID, MIME). Nothing is
+  copied from the original - no In-Reply-To / References, so the original's Message-ID and thread never leave the
+  program. The link to the original is kept only in the database (Email.in_reply_to) for the "replies" card."""
   msg = EmailMessage()
   msg["From"] = formataddr((from_name.replace("\n", " ").strip(), from_addr))
   msg["To"] = ", ".join(formataddr(a) for a in to)
@@ -132,14 +135,6 @@ def build_reply(original: Email, from_name: str, from_addr: str, to: list, cc: l
   msg["Subject"] = " ".join((subject or "").split())
   msg["Date"] = formatdate(localtime=True)
   msg["Message-ID"] = make_msgid(domain=from_addr.rsplit("@", 1)[1])
-  if original.message_id:
-    msg["In-Reply-To"] = original.message_id
-    try:
-      _, orig = parse_raw(read_eml(original))
-      references = header_str(orig, "References")
-    except Exception:
-      references = ""
-    msg["References"] = f"{references} {original.message_id}".strip()
   msg.set_content(body.replace("\r\n", "\n"))
   for filename, data in attachments:
     ctype, _ = mimetypes.guess_type(filename)
