@@ -12,7 +12,7 @@ if not os.path.exists(pathlib.Path(__file__).resolve().parent / ".env"):
   exit(1)
 load_dotenv(pathlib.Path(__file__).resolve().parent / ".env")
 application = Flask(__name__)
-application.config["VERSION"] = "1.0.4"
+application.config["VERSION"] = "1.0.5"
 application.config["SQLALCHEMY_DATABASE_URI"] = build_mysql_uri()
 application.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 application.config["SQLALCHEMY_ENGINE_OPTIONS"] = (

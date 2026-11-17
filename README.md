@@ -146,6 +146,7 @@ All settings are stored in the `settings` table (row `id=1`). You can edit them 
 | `ignoreDomains` | *(empty)* | Comma-separated domains that are never used as a folder |
 | `deleteFromServer` | `false` | Delete messages from the IMAP server after they are stored |
 | `imapTimeout` | `60` | IMAP and SMTP socket timeout, in seconds |
+| `smtpHeloName` | *(empty)* | Domain name the program introduces itself with in SMTP `HELO`/`EHLO` (for example `mail.example.com`); empty = this machine's name |
 | `fetchToken` | *(empty)* | When set, `GET /fetch/run/` requires `?token=` |
 | `logFile` | `/var/log/easy-emails-manager.log` | Log file (applied after a restart) |
 | `sessionKey` | random | Flask session key (applied after a restart) |

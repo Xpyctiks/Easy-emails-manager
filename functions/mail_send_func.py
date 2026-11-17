@@ -42,10 +42,12 @@ def smtp_connect(mb: Mailbox):
   security = mb.smtp_security or "ssl"
   port = int(mb.smtp_port or SMTP_DEFAULT_PORTS.get(security, 465))
   context = ssl.create_default_context()
+  #name sent in HELO/EHLO (setting smtpHeloName); None = smtplib default (this machine's FQDN)
+  helo = (get_settings().get("smtpHeloName") or "").strip() or None
   if security == "ssl":
-    smtp = smtplib.SMTP_SSL(mb.smtp_host, port, timeout=_timeout(), context=context)
+    smtp = smtplib.SMTP_SSL(mb.smtp_host, port, local_hostname=helo, timeout=_timeout(), context=context)
   else:
-    smtp = smtplib.SMTP(mb.smtp_host, port, timeout=_timeout())
+    smtp = smtplib.SMTP(mb.smtp_host, port, local_hostname=helo, timeout=_timeout())
     smtp.ehlo()
     if security == "starttls":
       smtp.starttls(context=context)

@@ -1,4 +1,5 @@
 import logging
+import re
 import secrets
 import string
 import sys
@@ -29,6 +30,9 @@ SETTINGS_SCHEMA = [
    "help": "Після того як лист збережено в базі та на диску, оригінал на IMAP сервері видаляється."},
   {"name": "imapTimeout", "type": "int", "default": "60",
    "label": "Таймаут IMAP / SMTP з'єднання (сек.)", "help": ""},
+  {"name": "smtpHeloName", "type": "text", "default": "",
+   "label": "Ім'я хоста для SMTP HELO/EHLO",
+   "help": "Доменне ім'я, яким програма представляється SMTP серверу (наприклад mail.example.com). Порожньо = ім'я цього комп'ютера."},
   {"name": "fetchToken", "type": "secret", "default": "",
    "label": "Токен для запуску збору (GET /fetch/run/)",
    "help": "Якщо задано - запит повинен містити ?token=<значення>. Порожньо = без перевірки."},
@@ -48,7 +52,7 @@ SETTINGS_BY_NAME = {s["name"]: s for s in SETTINGS_SCHEMA}
 #how the settings are grouped into cards in the admin panel (a setting missing here goes to the last group)
 SETTINGS_GROUPS = [
   ("Зберігання та сортування", "folders", ["storagePath", "sortBy", "recipientHeaders", "multiDomainMode", "ignoreDomains"]),
-  ("Збір пошти", "mailbox", ["deleteFromServer", "imapTimeout", "fetchToken"]),
+  ("Збір пошти", "mailbox", ["deleteFromServer", "imapTimeout", "smtpHeloName", "fetchToken"]),
   ("Система та сповіщення", "server", ["serverHostname", "autoRefresh", "logFile", "sessionKey", "telegramChat", "telegramToken"]),
 ]
 
@@ -86,6 +90,11 @@ def validate_setting(name: str, value: str) -> str:
     return value
   if name in ("storagePath", "logFile", "sessionKey") and not value:
     raise ValueError(f"'{name}' не може бути порожнім")
+  if name == "smtpHeloName":
+    value = value.rstrip(".").lower()
+    if value and not (len(value) <= 253 and re.fullmatch(r"(?!-)[a-z0-9-]{1,63}(?<!-)(\.(?!-)[a-z0-9-]{1,63}(?<!-))*", value)):
+      raise ValueError(f"'{name}' має бути доменним ім'ям, наприклад mail.example.com")
+    return value
   if name in ("ignoreDomains", "recipientHeaders"):
     return ",".join(p.strip() for p in value.split(",") if p.strip())
   return value
